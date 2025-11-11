@@ -8,9 +8,9 @@ const validate = require('../middleware/validate');
 router.post(
   '/',
   [
-    body('Customer_ID').isInt(),
-    body('Product_ID').isInt(),
-    body('Payment_ID').optional().isInt(),
+    body('Customer_ID').notEmpty().withMessage('Customer ID is required'),
+    body('Product_ID').notEmpty().withMessage('Product ID is required'),
+    body('Payment_ID').optional().notEmpty(),
     body('Date').isDate()
   ],
   validate,
@@ -27,9 +27,9 @@ router.get('/:id', orderController.getOrderById);
 router.put(
   '/:id',
   [
-    body('Customer_ID').optional().isInt(),
-    body('Product_ID').optional().isInt(),
-    body('Payment_ID').optional().isInt(),
+    body('Customer_ID').optional().notEmpty(),
+    body('Product_ID').optional().notEmpty(),
+    body('Payment_ID').optional().notEmpty(),
     body('Date').optional().isDate()
   ],
   validate,

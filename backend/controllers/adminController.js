@@ -333,7 +333,7 @@ exports.deleteService = async (req, res) => {
 exports.toggleServiceAvailability = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Is_Available } = req.body;
+    const { isAvailable } = req.body;
 
     const service = await serviceService.findById(id);
     if (!service) {
@@ -343,11 +343,11 @@ exports.toggleServiceAvailability = async (req, res) => {
       });
     }
 
-    await serviceService.update(id, { Is_Available });
+    await serviceService.update(id, { Is_Available: isAvailable });
 
     res.json({
       success: true,
-      message: `Service ${Is_Available ? 'enabled' : 'disabled'} successfully`
+      message: `Service ${isAvailable ? 'enabled' : 'disabled'} successfully`
     });
   } catch (error) {
     console.error('Toggle service error:', error);

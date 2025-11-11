@@ -8,7 +8,7 @@ const validate = require('../middleware/validate');
 router.post(
   '/',
   [
-    body('Booking_ID').optional().isInt(),
+    body('Booking_ID').optional().notEmpty(),
     body('Date').isDate(),
     body('Amount').isDecimal(),
     body('Method').isString(),
@@ -28,7 +28,7 @@ router.get('/:id', paymentController.getPaymentById);
 router.put(
   '/:id',
   [
-    body('Booking_ID').optional().isInt(),
+    body('Booking_ID').optional().notEmpty(),
     body('Date').optional().isDate(),
     body('Amount').optional().isDecimal(),
     body('Method').optional().isString(),

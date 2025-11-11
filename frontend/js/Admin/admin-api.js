@@ -517,7 +517,7 @@ class AdminAPIService {
     // ==================== DASHBOARD APIs ====================
 
     async getDashboardStats() {
-        return this.makeRequest('GET', '/admin/dashboard/stats', null, true, true);
+        return this.makeRequest('GET', '/admin/dashboard/stats', null, true, true, false);
     }
 
     async getBookingAnalytics(period = 'monthly') {
@@ -527,61 +527,61 @@ class AdminAPIService {
     // ==================== SERVICE MANAGEMENT ====================
 
     async getServices() {
-        return this.makeRequest('GET', '/admin/services', null, true, true);
+        return this.makeRequest('GET', '/admin/services', null, true, true, false);
     }
 
     async createService(serviceData) {
         this.clearCache('services');
-        return this.makeRequest('POST', '/admin/services', serviceData);
+        return this.makeRequest('POST', '/admin/services', serviceData, true, false, false);
     }
 
     async getServiceDetails(id) {
-        return this.makeRequest('GET', `/admin/services/${id}`, null, true, true);
+        return this.makeRequest('GET', `/admin/services/${id}`, null, true, true, false);
     }
 
     async updateService(id, serviceData) {
         this.clearCache('services');
-        return this.makeRequest('PUT', `/admin/services/${id}`, serviceData);
+        return this.makeRequest('PUT', `/admin/services/${id}`, serviceData, true, false, false);
     }
 
     async deleteService(id) {
         this.clearCache('services');
-        return this.makeRequest('DELETE', `/admin/services/${id}`);
+        return this.makeRequest('DELETE', `/admin/services/${id}`, null, true, false, false);
     }
 
     async toggleServiceAvailability(id, isAvailable) {
         this.clearCache('services');
-        return this.makeRequest('PATCH', `/admin/services/${id}/toggle`, { Is_Available: isAvailable });
+        return this.makeRequest('PATCH', `/admin/services/${id}/availability`, { isAvailable: isAvailable }, true, false, false);
     }
 
     // ==================== PRODUCT MANAGEMENT ====================
 
     async getProducts() {
-        return this.makeRequest('GET', '/admin/products', null, true, true);
+        return this.makeRequest('GET', '/admin/products', null, true, true, false);
     }
 
     async createProduct(productData) {
         this.clearCache('products');
-        return this.makeRequest('POST', '/admin/products', productData);
+        return this.makeRequest('POST', '/admin/products', productData, true, false, false);
     }
 
     async getProductDetails(id) {
-        return this.makeRequest('GET', `/admin/products/${id}`, null, true, true);
+        return this.makeRequest('GET', `/admin/products/${id}`, null, true, true, false);
     }
 
     async updateProduct(id, productData) {
         this.clearCache('products');
-        return this.makeRequest('PUT', `/admin/products/${id}`, productData);
+        return this.makeRequest('PUT', `/admin/products/${id}`, productData, true, false, false);
     }
 
     async deleteProduct(id) {
         this.clearCache('products');
-        return this.makeRequest('DELETE', `/admin/products/${id}`);
+        return this.makeRequest('DELETE', `/admin/products/${id}`, null, true, false, false);
     }
 
     async toggleProductAvailability(id, isAvailable) {
         this.clearCache('products');
-        return this.makeRequest('PATCH', `/admin/products/${id}/toggle`, { Is_Available: isAvailable });
+        return this.makeRequest('PATCH', `/admin/products/${id}/toggle`, { Is_Available: isAvailable }, true, false, false);
     }
 
     // ==================== BOOKING MANAGEMENT ====================
@@ -600,7 +600,7 @@ class AdminAPIService {
     }
 
     async updateBookingStatus(id, statusData) {
-        return this.makeRequest('PUT', `/bookings/${id}/status`, statusData, true, false, false);
+        return this.makeRequest('PATCH', `/admin/bookings/${id}/status`, statusData, true, false, false);
     }
 
     async updateBookingQuote(id, quoteData) {
@@ -616,16 +616,16 @@ class AdminAPIService {
 
     async getCustomers(params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        return this.makeRequest('GET', `/admin/customers?${queryString}`, null, true, false);
+        return this.makeRequest('GET', `/admin/customers?${queryString}`, null, true, false, false);
     }
 
     async getCustomerDetails(id) {
-        return this.makeRequest('GET', `/admin/customers/${id}`, null, true, false);
+        return this.makeRequest('GET', `/admin/customers/${id}`, null, true, false, false);
     }
 
     async updateCustomer(id, customerData) {
         this.clearCache('customers');
-        return this.makeRequest('PUT', `/admin/customers/${id}`, customerData);
+        return this.makeRequest('PUT', `/admin/customers/${id}`, customerData, true, false, false);
     }
 
     // ==================== ADMIN MANAGEMENT ====================

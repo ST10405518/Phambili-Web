@@ -1030,15 +1030,15 @@ class AdminDashboard {
     </div>
   </div>
   <div class="product-actions">
-    <button class="btn-icon" onclick="adminDashboard.editService(${service.ID})" title="Edit">
+    <button class="btn-icon" onclick="adminDashboard.editService('${service.ID}')" title="Edit">
       <i class="fas fa-edit"></i>
     </button>
     <button class="btn-icon toggle-availability ${service.Is_Available ? 'make-unavailable' : 'make-available'}" 
-            onclick="adminDashboard.toggleServiceAvailability(${service.ID}, ${!service.Is_Available})" 
+            onclick="adminDashboard.toggleServiceAvailability('${service.ID}', ${!service.Is_Available})" 
             title="${service.Is_Available ? 'Disable Service' : 'Enable Service'}">
       <i class="fas fa-${service.Is_Available ? 'eye-slash' : 'eye'}"></i>
     </button>
-    <button class="btn-icon delete" onclick="adminDashboard.deleteService(${service.ID})" title="Delete">
+    <button class="btn-icon delete" onclick="adminDashboard.deleteService('${service.ID}')" title="Delete">
       <i class="fas fa-trash"></i>
     </button>
   </div>
@@ -1311,13 +1311,13 @@ class AdminDashboard {
     </div>
   </div>
   <div class="product-actions">
-    <button class="btn-icon" onclick="adminDashboard.editProduct(${product.ID})" title="Edit">
+    <button class="btn-icon" onclick="adminDashboard.editProduct('${product.ID}')" title="Edit">
       <i class="fas fa-edit"></i>
     </button>
-    <button class="btn-icon toggle-availability" onclick="adminDashboard.toggleProductAvailability(${product.ID}, ${!product.Is_Available})" title="${product.Is_Available ? 'Disable' : 'Enable'}">
+    <button class="btn-icon toggle-availability" onclick="adminDashboard.toggleProductAvailability('${product.ID}', ${!product.Is_Available})" title="${product.Is_Available ? 'Disable' : 'Enable'}">
       <i class="fas fa-${product.Is_Available ? 'eye-slash' : 'eye'}"></i>
     </button>
-    <button class="btn-icon delete" onclick="adminDashboard.deleteProduct(${product.ID})" title="Delete">
+    <button class="btn-icon delete" onclick="adminDashboard.deleteProduct('${product.ID}')" title="Delete">
       <i class="fas fa-trash"></i>
     </button>
   </div>
@@ -2444,7 +2444,7 @@ class AdminDashboard {
             ` : ''}
             
             <!-- Single View Details button -->
-            <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
+            <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails('${booking.ID}')">
               <i class="fas fa-eye"></i> View Details
             </button>
           </div>
@@ -2528,7 +2528,7 @@ class AdminDashboard {
   renderActionButtons(status, bookingId, isPast, phoneNumber) {
     if (isPast) {
       return `
-      <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails(${bookingId})">
+      <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails('${bookingId}')">
         <i class="fas fa-eye"></i> View Details
       </button>
     `;
@@ -2536,7 +2536,7 @@ class AdminDashboard {
 
     // Call button that opens the call modal
     const callButton = phoneNumber ? `
-    <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+    <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal('${bookingId}')">
       <i class="fas fa-phone"></i> Call
     </button>
   ` : '';
@@ -2546,10 +2546,10 @@ class AdminDashboard {
       case 'requested':
         return `
         ${callButton}
-        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking('${bookingId}')">
           <i class="fas fa-check"></i> Approve
         </button>
-        <button class="btn btn-danger btn-sm" onclick="adminDashboard.declineBooking(${bookingId})">
+        <button class="btn btn-danger btn-sm" onclick="adminDashboard.declineBooking('${bookingId}')">
           <i class="fas fa-times"></i> Decline
         </button>
       `;
@@ -2557,10 +2557,10 @@ class AdminDashboard {
       case 'contacted':
         return `
         ${callButton}
-        <button class="btn btn-warning btn-sm" onclick="adminDashboard.markAsInProgress(${bookingId})">
+        <button class="btn btn-warning btn-sm" onclick="adminDashboard.markAsInProgress('${bookingId}')">
           <i class="fas fa-play-circle"></i> In Progress
         </button>
-        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal('${bookingId}')">
           <i class="fas fa-edit"></i> Add Notes
         </button>
       `;
@@ -2568,10 +2568,10 @@ class AdminDashboard {
       case 'in_progress':
         return `
         ${callButton}
-        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal(${bookingId})">
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.openCallWithNotesModal('${bookingId}')">
           <i class="fas fa-edit"></i> Add Notes
         </button>
-        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking('${bookingId}')">
           <i class="fas fa-check"></i> Approve
         </button>
       `;
@@ -2579,10 +2579,10 @@ class AdminDashboard {
       case 'quoted':
         return `
         ${callButton}
-        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking(${bookingId})">
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.approveBooking('${bookingId}')">
           <i class="fas fa-check"></i> Approve Booking
         </button>
-        <button class="btn btn-info btn-sm" onclick="adminDashboard.updateBookingStatus(${bookingId}, 'confirmed')">
+        <button class="btn btn-info btn-sm" onclick="adminDashboard.updateBookingStatus('${bookingId}', 'confirmed')">
           <i class="fas fa-check-double"></i> Confirm
         </button>
       `;
@@ -2590,7 +2590,7 @@ class AdminDashboard {
       case 'confirmed':
         return `
         ${callButton}
-        <button class="btn btn-success btn-sm" onclick="adminDashboard.updateBookingStatus(${bookingId}, 'completed')">
+        <button class="btn btn-success btn-sm" onclick="adminDashboard.updateBookingStatus('${bookingId}', 'completed')">
           <i class="fas fa-flag-checkered"></i> Mark Complete
         </button>
       `;
@@ -2598,7 +2598,7 @@ class AdminDashboard {
       default:
         return `
         ${callButton}
-        <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails(${bookingId})">
+        <button class="btn btn-secondary btn-sm" onclick="adminDashboard.viewBookingDetails('${bookingId}')">
           <i class="fas fa-eye"></i> View Details
         </button>
       `;
@@ -2634,10 +2634,10 @@ class AdminDashboard {
         
         <div class="call-actions">
           <div class="actions-buttons">
-            <button class="btn btn-success" onclick="adminDashboard.saveCallNotes(${bookingId})">
+            <button class="btn btn-success" onclick="adminDashboard.saveCallNotes('${bookingId}')">
               <i class="fas fa-save"></i> Save Notes
             </button>
-            <button class="btn btn-primary" onclick="adminDashboard.markAsCalled(${bookingId})">
+            <button class="btn btn-primary" onclick="adminDashboard.markAsCalled('${bookingId}')">
               <i class="fas fa-check"></i> Mark as Contacted
             </button>
           </div>
@@ -2793,7 +2793,7 @@ class AdminDashboard {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-      <button class="btn btn-danger" onclick="adminDashboard.confirmDecline(${bookingId})">
+      <button class="btn btn-danger" onclick="adminDashboard.confirmDecline('${bookingId}')">
         <i class="fas fa-ban"></i> Decline Booking
       </button>
     </div>
@@ -2866,6 +2866,10 @@ class AdminDashboard {
       'cancelled': 'Cancelled',
       'declined': 'Declined'
     };
+    
+    // Handle undefined or null status
+    if (!status) return 'Unknown';
+    
     return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
   }
 
@@ -3075,7 +3079,7 @@ class AdminDashboard {
                                 <i class="fas fa-phone"></i>
                                 <span class="value">
                                     ${booking.Customer?.Phone ?
-          `<a href="tel:${booking.Customer.Phone}" class="contact-link call-link" onclick="event.stopPropagation(); adminDashboard.openCallWithNotesModal(${booking.ID})">
+          `<a href="tel:${booking.Customer.Phone}" class="contact-link call-link" onclick="event.stopPropagation(); adminDashboard.openCallWithNotesModal('${booking.ID}')">
                                             ${booking.Customer.Phone}
                                             <i class="fas fa-phone-alt call-icon"></i>
                                          </a>` :
@@ -3187,7 +3191,7 @@ class AdminDashboard {
                         `}
                         ${booking.Customer?.Phone ? `
                         <div class="contact-actions">
-                            <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                            <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal('${booking.ID}')">
                                 <i class="fas fa-phone"></i> Call Customer
                             </button>
                         </div>
@@ -3314,14 +3318,14 @@ class AdminDashboard {
                                     rows="4"
                                 >${this.loadAdminNotes(booking.ID) || ''}</textarea>
                                 <div class="notes-actions">
-                                    <button class="btn btn-primary btn-sm" onclick="adminDashboard.saveAdminNotes(${booking.ID})">
+                                    <button class="btn btn-primary btn-sm" onclick="adminDashboard.saveAdminNotes('${booking.ID}')">
                                         <i class="fas fa-save"></i> Save Notes
                                     </button>
                                     ${booking.Customer?.Phone ? `
-                                        <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                                        <button class="btn btn-success btn-sm" onclick="adminDashboard.openCallWithNotesModal('${booking.ID}')">
                                             <i class="fas fa-phone"></i> Call & Add Notes
                                         </button>
-                                        <button class="btn btn-info btn-sm" onclick="adminDashboard.markAsCalled(${booking.ID})">
+                                        <button class="btn btn-info btn-sm" onclick="adminDashboard.markAsCalled('${booking.ID}')">
                                             <i class="fas fa-check"></i> Mark Contacted
                                         </button>
                                     ` : ''}
@@ -3347,16 +3351,16 @@ class AdminDashboard {
                 <!-- Dynamic Status Actions -->
                 ${booking.Status === 'pending' || booking.Status === 'requested' ? `
                 <div class="btn-group">
-                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking('${booking.ID}')">
                         <i class="fas fa-check"></i>
                         Approve
                     </button>
-                    <button class="btn btn-danger" onclick="adminDashboard.declineBooking(${booking.ID})">
+                    <button class="btn btn-danger" onclick="adminDashboard.declineBooking('${booking.ID}')">
                         <i class="fas fa-times"></i>
                         Decline
                     </button>
                     ${booking.Customer?.Phone ? `
-                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal('${booking.ID}')">
                         <i class="fas fa-phone"></i>
                         Call Customer
                     </button>
@@ -3366,12 +3370,12 @@ class AdminDashboard {
                 
                 ${booking.Status === 'contacted' ? `
                 <div class="btn-group">
-                    <button class="btn btn-warning" onclick="adminDashboard.markAsInProgress(${booking.ID})">
+                    <button class="btn btn-warning" onclick="adminDashboard.markAsInProgress('${booking.ID}')">
                         <i class="fas fa-play-circle"></i>
                         Move to In Progress
                     </button>
                     ${booking.Customer?.Phone ? `
-                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal('${booking.ID}')">
                         <i class="fas fa-phone"></i>
                         Call Again
                     </button>
@@ -3382,12 +3386,12 @@ class AdminDashboard {
                 ${booking.Status === 'in_progress' ? `
                 <div class="btn-group">
                     ${booking.Customer?.Phone ? `
-                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal(${booking.ID})">
+                    <button class="btn btn-primary" onclick="adminDashboard.openCallWithNotesModal('${booking.ID}')">
                         <i class="fas fa-phone"></i>
                         Call Customer
                     </button>
                     ` : ''}
-                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking('${booking.ID}')">
                         <i class="fas fa-check"></i>
                         Approve
                     </button>
@@ -3396,11 +3400,11 @@ class AdminDashboard {
                 
                 ${booking.Status === 'quoted' ? `
                 <div class="btn-group">
-                    <button class="btn btn-success" onclick="adminDashboard.approveBooking(${booking.ID})">
+                    <button class="btn btn-success" onclick="adminDashboard.approveBooking('${booking.ID}')">
                         <i class="fas fa-check"></i>
                         Approve Booking
                     </button>
-                    <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'confirmed')">
+                    <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'confirmed')">
                         <i class="fas fa-check-double"></i>
                         Confirm
                     </button>
@@ -3408,14 +3412,14 @@ class AdminDashboard {
                 ` : ''}
                 
                 ${booking.Status === 'approved' ? `
-                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'confirmed')">
+                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'confirmed')">
                     <i class="fas fa-check-double"></i>
                     Mark Confirmed
                 </button>
                 ` : ''}
                 
                 ${booking.Status === 'confirmed' ? `
-                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'completed')">
+                <button class="btn btn-info" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'completed')">
                     <i class="fas fa-flag-checkered"></i>
                     Mark Complete
                 </button>
@@ -3423,7 +3427,7 @@ class AdminDashboard {
 
                 <!-- Show View Details only for completed/cancelled bookings -->
                 ${['completed', 'cancelled', 'declined'].includes(booking.Status) ? `
-                <button class="btn btn-secondary" onclick="adminDashboard.viewBookingDetails(${booking.ID})">
+                <button class="btn btn-secondary" onclick="adminDashboard.viewBookingDetails('${booking.ID}')">
                     <i class="fas fa-eye"></i>
                     View Details
                 </button>
@@ -3432,7 +3436,7 @@ class AdminDashboard {
                 <!-- Quick Status Actions -->
                 <div class="quick-actions">
                     ${!['cancelled', 'completed', 'declined'].includes(booking.Status) ? `
-                    <button class="btn btn-danger" onclick="adminDashboard.updateBookingStatus(${booking.ID}, 'cancelled')">
+                    <button class="btn btn-danger" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'cancelled')">
                         <i class="fas fa-times"></i>
                         Cancel Booking
                     </button>
@@ -3657,7 +3661,7 @@ class AdminDashboard {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-            <button class="btn btn-primary" onclick="adminDashboard.confirmConsultation(${bookingId})">
+            <button class="btn btn-primary" onclick="adminDashboard.confirmConsultation('${bookingId}')">
                 <i class="fas fa-save"></i> Save Consultation Details
             </button>
         </div>
@@ -3765,7 +3769,7 @@ class AdminDashboard {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-            <button class="btn btn-primary" onclick="adminDashboard.confirmContacted(${bookingId})">
+            <button class="btn btn-primary" onclick="adminDashboard.confirmContacted('${bookingId}')">
                 <i class="fas fa-check"></i> Mark as Contacted
             </button>
         </div>
@@ -3849,7 +3853,7 @@ class AdminDashboard {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-            <button class="btn btn-primary" onclick="adminDashboard.submitQuotation(${bookingId})">
+            <button class="btn btn-primary" onclick="adminDashboard.submitQuotation('${bookingId}')">
                 <i class="fas fa-paper-plane"></i>
                 Send Quotation
             </button>
@@ -5330,12 +5334,6 @@ const saveAdminNotes = (bookingId, notes) => {
   localStorage.setItem('bookingNotes', JSON.stringify(allNotes));
 };
 
-const statusInfo = {
-  label: this.formatStatus(booking.Status),
-  description: this.getStatusDescription(booking.Status),
-  color: this.getStatusColor(booking.Status),
-  icon: this.getStatusIcon(booking.Status)
-};
 const getAdminNotes = (bookingId) => {
   const allNotes = JSON.parse(localStorage.getItem('bookingNotes') || '{}');
   return allNotes[bookingId]?.notes || '';

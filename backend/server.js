@@ -29,16 +29,31 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration - MORE PERMISSIVE
+// CORS configuration - Allow all localhost origins for development
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:5500',
-    'http://localhost:5000',
-    'http://127.0.0.1:3000',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000'
-  ],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    
+    // Allow all localhost and 127.0.0.1 origins
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // Allow specific origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5000',
+      'http://localhost:8000',
+      'http://127.0.0.1:5500'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all in development
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],

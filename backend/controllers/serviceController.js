@@ -15,12 +15,20 @@ exports.createService = async (req, res) => {
     }
 
     let imageUrl = null;
+    let imageUploadWarning = null;
+    
     if (req.file) {
-      imageUrl = req.firebaseFileUrl || await storageService.uploadFile(
-        req.file.buffer,
-        req.file.originalname,
-        'services'
-      );
+      try {
+        imageUrl = req.firebaseFileUrl || await storageService.uploadFile(
+          req.file.buffer,
+          req.file.originalname,
+          'services'
+        );
+      } catch (uploadError) {
+        console.error('⚠️ Image upload failed, creating service without image:', uploadError.message);
+        imageUploadWarning = 'Service created but image upload failed. You can add an image later.';
+        // Continue without image instead of failing
+      }
     }
 
     const service = await serviceService.create({ 
@@ -34,8 +42,9 @@ exports.createService = async (req, res) => {
 
     res.status(201).json({ 
       success: true,
-      message: 'Service created successfully', 
-      service 
+      message: imageUploadWarning || 'Service created successfully', 
+      service,
+      warning: imageUploadWarning
     });
   } catch (err) {
     console.error('Create service error:', err);
@@ -145,6 +154,8 @@ exports.updateService = async (req, res) => {
     }
 
     let imageUrl = service.Image_URL;
+    let imageUploadWarning = null;
+    
     if (req.file) {
       // Delete old image from Firebase Storage
       if (service.Image_URL) {
@@ -154,11 +165,18 @@ exports.updateService = async (req, res) => {
           console.error('Error deleting old image:', error);
         }
       }
-      imageUrl = req.firebaseFileUrl || await storageService.uploadFile(
-        req.file.buffer,
-        req.file.originalname,
-        'services'
-      );
+      
+      try {
+        imageUrl = req.firebaseFileUrl || await storageService.uploadFile(
+          req.file.buffer,
+          req.file.originalname,
+          'services'
+        );
+      } catch (uploadError) {
+        console.error('⚠️ Image upload failed during update:', uploadError.message);
+        imageUploadWarning = 'Service updated but new image upload failed.';
+        // Keep the old image URL
+      }
     }
 
     const updatedService = await serviceService.update(id, {

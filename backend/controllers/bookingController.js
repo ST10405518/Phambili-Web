@@ -91,14 +91,38 @@ exports.createBooking = async (req, res) => {
     // ==================== DATABASE VALIDATION ====================
     console.log('🔍 VALIDATING CUSTOMER AND SERVICE...');
 
-    // 4. Validate customer exists
-    const customer = await customerService.findById(Customer_ID);
+    // 4. Validate customer exists or create from authenticated user
+    let customer = await customerService.findById(Customer_ID);
     if (!customer) {
-      console.log('❌ CUSTOMER NOT FOUND:', Customer_ID);
-      return res.status(404).json({
-        success: false,
-        message: 'Customer account not found. Please contact support.'
-      });
+      console.log('⚠️ CUSTOMER NOT FOUND, CHECKING AUTH USER:', Customer_ID);
+      
+      // Try to create customer from authenticated user data
+      if (req.user && req.user.uid === Customer_ID) {
+        console.log('✨ AUTO-CREATING CUSTOMER FROM AUTH USER');
+        try {
+          const newCustomer = {
+            ID: req.user.uid,
+            Full_Name: req.user.displayName || req.user.email?.split('@')[0] || 'Customer',
+            Email: req.user.email,
+            Phone: req.user.phoneNumber || '',
+            Registration_Date: new Date().toISOString()
+          };
+          customer = await customerService.create(newCustomer);
+          console.log('✅ CUSTOMER AUTO-CREATED:', customer.Full_Name);
+        } catch (createError) {
+          console.error('❌ FAILED TO AUTO-CREATE CUSTOMER:', createError);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to create customer account. Please try again or contact support.'
+          });
+        }
+      } else {
+        console.log('❌ CUSTOMER NOT FOUND AND NO VALID AUTH USER');
+        return res.status(404).json({
+          success: false,
+          message: 'Customer account not found. Please log in and try again.'
+        });
+      }
     }
     console.log('✅ CUSTOMER VALIDATED:', customer.Full_Name);
 
@@ -112,8 +136,22 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    if (service.Is_Available !== true) {
-      console.log('❌ SERVICE UNAVAILABLE:', service.Name);
+    // Check availability - handle both boolean and string values, default to true if undefined
+    const isAvailable = service.Is_Available === true || 
+                        service.Is_Available === 'true' || 
+                        service.Is_Available === 1 ||
+                        service.Is_Available === undefined ||
+                        service.Is_Available === null;
+    
+    console.log('🔍 SERVICE AVAILABILITY CHECK:', {
+      Name: service.Name,
+      Is_Available: service.Is_Available,
+      Type: typeof service.Is_Available,
+      IsAvailable: isAvailable
+    });
+    
+    if (!isAvailable) {
+      console.log('❌ SERVICE UNAVAILABLE:', service.Name, '- Is_Available value:', service.Is_Available);
       return res.status(400).json({
         success: false,
         message: 'This service is currently unavailable. Please choose another service or check back later.'
@@ -121,17 +159,15 @@ exports.createBooking = async (req, res) => {
     }
     console.log('✅ SERVICE VALIDATED:', service.Name);
 
-    // 6. Check for duplicate bookings
-    const existingBooking = await Booking.findOne({
-      where: {
-        Customer_ID,
-        Service_ID,
-        Date: normalizedRequestedDate,
-        Status: {
-          [Op.notIn]: ['cancelled', 'rejected']
-        }
-      }
-    });
+    // 6. Check for duplicate bookings using Firebase
+    console.log('🔍 CHECKING FOR DUPLICATE BOOKINGS...');
+    const allBookings = await bookingService.findAll();
+    const existingBooking = allBookings.find(booking => 
+      booking.Customer_ID === Customer_ID &&
+      booking.Service_ID === Service_ID &&
+      booking.Date === normalizedRequestedDate &&
+      !['cancelled', 'rejected', 'declined'].includes(booking.Status)
+    );
 
     if (existingBooking) {
       console.log('❌ DUPLICATE BOOKING ATTEMPT');
@@ -148,10 +184,10 @@ exports.createBooking = async (req, res) => {
     // Build formatted address
     const formattedAddress = `${Address_Street.trim()}, ${Address_City.trim()}, ${Address_State.trim()}, ${Address_Postal_Code.trim()}`;
 
-    // Prepare booking data
+    // Prepare booking data for Firebase
     const bookingData = {
-      Customer_ID: parseInt(Customer_ID),
-      Service_ID: parseInt(Service_ID),
+      Customer_ID: Customer_ID,  // Keep as string for Firebase
+      Service_ID: Service_ID,    // Keep as string for Firebase
       Date: normalizedRequestedDate,
       Time: Time && Time.trim() ? Time.trim() : '09:00',
       Address: formattedAddress,
@@ -161,7 +197,8 @@ exports.createBooking = async (req, res) => {
       Status: Status,
       Property_Type: Property_Type?.trim() || null,
       Property_Size: Property_Size?.trim() || null,
-      Cleaning_Frequency: Cleaning_Frequency?.trim() || null
+      Cleaning_Frequency: Cleaning_Frequency?.trim() || null,
+      Created_At: new Date().toISOString()
     };
 
     console.log('📝 BOOKING DATA TO CREATE:', bookingData);
@@ -170,24 +207,17 @@ exports.createBooking = async (req, res) => {
     const booking = await bookingService.create(bookingData);
     console.log('✅ BOOKING CREATED SUCCESSFULLY - ID:', booking.ID);
 
-    // Fetch the complete booking with relationships
-    const newBooking = await bookingService.findById(booking.ID, {
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
-        },
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration', 'Category']
-        }
-      ]
-    });
+    // Fetch the complete booking with related data (Firebase style)
+    const newBooking = await bookingService.findById(booking.ID);
+    
+    // Fetch related customer and service data separately
+    const bookingCustomer = await customerService.findById(newBooking.Customer_ID);
+    const bookingService_data = await serviceService.findById(newBooking.Service_ID);
 
     console.log('🎉 BOOKING COMPLETED SUCCESSFULLY:', {
       bookingId: newBooking.ID,
-      customer: newBooking.Customer.Full_Name,
-      service: newBooking.Service.Name,
+      customer: bookingCustomer?.Full_Name || 'Unknown',
+      service: bookingService_data?.Name || 'Unknown',
       date: newBooking.Date,
       status: newBooking.Status
     });
@@ -212,27 +242,18 @@ exports.createBooking = async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Handle specific database errors
-    if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({
+    // Handle specific Firebase errors
+    if (err.code === 'permission-denied') {
+      return res.status(403).json({
         success: false,
-        message: 'A booking with these details already exists.'
+        message: 'Permission denied. Please check your authentication.'
       });
     }
 
-    if (err.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({
+    if (err.code === 'not-found') {
+      return res.status(404).json({
         success: false,
-        message: 'Invalid customer or service reference.'
-      });
-    }
-
-    if (err.name === 'SequelizeValidationError') {
-      const validationErrors = err.errors.map(error => error.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: validationErrors
+        message: 'Resource not found.'
       });
     }
 
@@ -452,32 +473,54 @@ exports.getCustomerBookings = async (req, res) => {
   try {
     const { Customer_ID } = req.params;
     const { page = 1, limit = 10, status } = req.query;
-    const offset = (page - 1) * limit;
 
-    const whereClause = { Customer_ID };
+    // Get all bookings for this customer from Firebase
+    const allBookings = await bookingService.findAll();
+    let customerBookings = allBookings.filter(b => b.Customer_ID === Customer_ID);
+
+    // Filter by status if provided
     if (status && status !== 'all') {
-      whereClause.Status = status;
+      customerBookings = customerBookings.filter(b => b.Status === status);
     }
 
-    const { count, rows: bookings } = await Booking.findAndCountAll({
-      where: whereClause,
-      include: [
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration', 'Category', 'Image_URL']
-        }
-      ],
-      order: [['Date', 'DESC'], ['created_at', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+    // Sort by date descending
+    customerBookings.sort((a, b) => {
+      const dateCompare = new Date(b.Date) - new Date(a.Date);
+      if (dateCompare !== 0) return dateCompare;
+      return new Date(b.Created_At || 0) - new Date(a.Created_At || 0);
     });
+
+    // Fetch service details for each booking
+    const bookingsWithServices = await Promise.all(
+      customerBookings.map(async (booking) => {
+        const service = await serviceService.findById(booking.Service_ID);
+        return {
+          ...booking,
+          Service: service ? {
+            ID: service.ID,
+            Name: service.Name,
+            Description: service.Description,
+            Duration: service.Duration,
+            Category: service.Category,
+            Image_URL: service.Image_URL
+          } : null
+        };
+      })
+    );
+
+    // Pagination
+    const totalBookings = bookingsWithServices.length;
+    const totalPages = Math.ceil(totalBookings / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedBookings = bookingsWithServices.slice(startIndex, endIndex);
 
     res.json({
       success: true,
-      bookings,
-      totalPages: Math.ceil(count / limit),
+      bookings: paginatedBookings,
+      totalPages,
       currentPage: parseInt(page),
-      totalBookings: count
+      totalBookings
     });
 
   } catch (err) {

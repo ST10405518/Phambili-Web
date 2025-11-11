@@ -77,8 +77,8 @@ router.post(
   '/',
   auth,
   [
-    body('Customer_ID').isInt(),
-    body('Service_ID').isInt(),
+    body('Customer_ID').notEmpty().withMessage('Customer ID is required'),
+    body('Service_ID').notEmpty().withMessage('Service ID is required'),
     body('Date').isDate()
   ],
   validate,
@@ -98,8 +98,8 @@ router.get(
   '/check-availability',
   auth,
   [
-    query('Customer_ID').isInt(),
-    query('Service_ID').isInt(), 
+    query('Customer_ID').notEmpty().withMessage('Customer ID is required'),
+    query('Service_ID').notEmpty().withMessage('Service ID is required'), 
     query('Date').isDate()
   ],
   validate,
