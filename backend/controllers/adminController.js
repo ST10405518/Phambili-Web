@@ -813,17 +813,121 @@ exports.checkAdminPermissions = async (req, res, next) => {
 // ==================== STUB FUNCTIONS (Not implemented yet) ====================
 
 exports.firstLoginSetup = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'First login setup not implemented. Please login with your credentials.'
-  });
+  try {
+    const { Email, TemporaryPassword, NewPassword } = req.body;
+    
+    if (!Email || !TemporaryPassword || !NewPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, temporary password and new password are required.'
+      });
+    }
+    
+    // Find admin by email including password
+    const admin = await adminService.findByEmailWithPassword(Email.toLowerCase().trim());
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found.'
+      });
+    }
+    
+    if (!admin.First_Login) {
+      return res.status(400).json({
+        success: false,
+        message: 'First login already completed.'
+      });
+    }
+    
+    if (!admin.Password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account not properly set up. Please contact administrator.'
+      });
+    }
+    
+    // Verify provided temporary password against stored hash
+    const bcrypt = require('bcryptjs');
+    const isTempValid = await bcrypt.compare(TemporaryPassword, admin.Password);
+    if (!isTempValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid temporary password.'
+      });
+    }
+    
+    // Update password and clear First_Login
+    await adminService.update(admin.ID, { Password: NewPassword, First_Login: false, Last_Login: new Date().toISOString() });
+    
+    // Generate token
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key';
+    const token = jwt.sign(
+      {
+        id: admin.ID,
+        email: admin.Email,
+        role: 'admin'
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    
+    const userData = {
+      ID: admin.ID,
+      Name: admin.Name || admin.Full_Name,
+      Email: admin.Email,
+      Phone: admin.Phone || null,
+      Role: admin.Role || 'admin',
+      First_Login: false
+    };
+    
+    return res.json({
+      success: true,
+      message: 'Password set successfully.',
+      token,
+      role: 'admin',
+      user: userData
+    });
+    
+  } catch (error) {
+    console.error('First login setup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting up account'
+    });
+  }
 };
 
 exports.checkPasswordStatus = async (req, res) => {
-  res.json({
-    success: true,
-    requiresReset: false
-  });
+  try {
+    // Requires adminAuth middleware; read current admin
+    const adminId = req.user?.id;
+    if (!adminId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+    
+    const admin = await adminService.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      requiresReset: !!admin.First_Login
+    });
+  } catch (error) {
+    console.error('checkPasswordStatus error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking password status'
+    });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
@@ -832,10 +936,103 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.createAdmin = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Create admin not implemented yet'
-  });
+  try {
+    const { Name, Email, Phone, Role = 'sub_admin' } = req.body;
+
+    // Verify current user is main_admin
+    const currentAdmin = await adminService.findById(req.user.id);
+    if (!currentAdmin || currentAdmin.Role !== 'main_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only main admin can create other admins'
+      });
+    }
+
+    // Validate required fields
+    if (!Name || !Email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and Email are required'
+      });
+    }
+
+    // Check if admin already exists
+    const existing = await adminService.findByEmail(Email.toLowerCase().trim());
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin with this email already exists'
+      });
+    }
+
+    // Generate secure temporary password
+    const generateTemporaryPassword = () => {
+      const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const lower = 'abcdefghijkmnopqrstuvwxyz';
+      const nums = '23456789';
+      const special = '!@#$%^&*()_-+=';
+      const all = upper + lower + nums + special;
+      const pick = (chars) => chars[Math.floor(Math.random() * chars.length)];
+      let result = [
+        pick(upper),
+        pick(lower),
+        pick(nums),
+        pick(special)
+      ];
+      for (let i = result.length; i < 12; i++) {
+        result.push(pick(all));
+      }
+      // simple shuffle
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result.join('');
+    };
+
+    const temporaryPassword = generateTemporaryPassword();
+
+    // Hash and create in Firestore using consistent schema
+    const bcrypt = require('bcryptjs');
+    const { db } = require('../firebaseConfig');
+    const hashedTempPassword = await bcrypt.hash(temporaryPassword, 12);
+
+    const adminData = {
+      Name: Name.trim(),
+      Email: Email.toLowerCase().trim(),
+      Phone: Phone ? String(Phone) : null,
+      Password: hashedTempPassword,
+      First_Login: true,
+      Role: Role === 'main_admin' ? 'main_admin' : 'sub_admin',
+      Created_By: req.user.id,
+      Is_Active: true,
+      Created_At: new Date().toISOString(),
+      Login_Attempts: 0,
+      Locked_Until: null
+    };
+
+    const docRef = await db.collection('admins').add(adminData);
+
+    return res.status(201).json({
+      success: true,
+      message: `${adminData.Role === 'main_admin' ? 'Main admin' : 'Sub-admin'} created successfully`,
+      admin: {
+        ID: docRef.id,
+        Name: adminData.Name,
+        Email: adminData.Email,
+        Role: adminData.Role,
+        First_Login: adminData.First_Login
+      },
+      temporaryPassword,
+      instructions: 'Share the temporary password securely. The admin must set a new password on first login.'
+    });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating admin: ' + (error.message || 'Unknown error')
+    });
+  }
 };
 
 exports.getAllAdmins = async (req, res) => {

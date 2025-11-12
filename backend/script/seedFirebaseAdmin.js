@@ -6,7 +6,7 @@ async function seedFirebaseAdmin() {
   try {
     console.log('🔄 Starting Firebase admin seeding...');
 
-    const adminEmail = 'admin@phambili.com';
+    const adminEmail = 'admin@phambilimaafrica.com';
     const adminPassword = 'Admin123!'; // Change this to your desired password
 
     // Check if admin already exists

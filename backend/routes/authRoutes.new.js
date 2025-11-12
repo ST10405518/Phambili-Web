@@ -3,6 +3,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const simpleForgotPassword = require('../controllers/simpleForgotPassword');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
@@ -32,6 +33,11 @@ const changePasswordValidation = [
   body('newPassword').isLength({ min: 6 })
 ];
 
+const directResetPasswordValidation = [
+  body('Email').isEmail().normalizeEmail(),
+  body('NewPassword').isLength({ min: 6 })
+];
+
 // Public routes
 router.post(
   '/register',
@@ -59,6 +65,21 @@ router.post(
   resetPasswordValidation,
   validate,
   authController.resetPassword
+);
+
+// Simple forgot password routes
+router.post(
+  '/check-email',
+  forgotPasswordValidation,
+  validate,
+  simpleForgotPassword.checkEmail
+);
+
+router.post(
+  '/direct-reset-password',
+  directResetPasswordValidation,
+  validate,
+  simpleForgotPassword.directResetPassword
 );
 
 // Protected routes (require authentication)

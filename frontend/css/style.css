@@ -4727,6 +4727,66 @@ body.overlay-active {
 
 /* ========================================== LOGOUT NOTIFICATION END ========================================== */
 
+/* ========================================== GLOBAL MODAL STYLES ========================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.modal-overlay .modal {
+    background: var(--white);
+    border-radius: 16px;
+    width: min(480px, 100%);
+    box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    animation: modalFadeIn 0.25s ease;
+    position: relative;
+}
+
+.modal-overlay .modal .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--primary-dark);
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.modal-overlay .modal .modal-close:hover {
+    color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
 /* ========================================== FIRST LOGIN MODAL START ========================================== */
 #firstLoginModal.modal-overlay {
     position: fixed;

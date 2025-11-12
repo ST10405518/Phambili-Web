@@ -790,6 +790,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clearQueue: () => window.enhancedDashboard.api.clearQueue(),
         getMetrics: () => window.enhancedDashboard.api.getMetrics()
     };
+     checkResetToken();
 });
 
 // Initialize API service

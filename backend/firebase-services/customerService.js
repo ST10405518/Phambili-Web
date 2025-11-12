@@ -8,9 +8,11 @@ class CustomerService {
   async create(customerData) {
     try {
       const { Full_Name, Email, Password, Phone, Address } = customerData;
+      const normalizedEmail = typeof Email === 'string' ? Email.trim().toLowerCase() : '';
+      const trimmedName = typeof Full_Name === 'string' ? Full_Name.trim() : '';
       
       // Check if customer already exists
-      const existingCustomer = await this.findByEmail(Email);
+      const existingCustomer = await this.findByEmail(normalizedEmail);
       if (existingCustomer) {
         throw new Error('Customer with this email already exists');
       }
@@ -19,8 +21,8 @@ class CustomerService {
       const hashedPassword = await bcrypt.hash(Password, 10);
 
       const newCustomer = {
-        Full_Name,
-        Email,
+        Full_Name: trimmedName || Full_Name,
+        Email: normalizedEmail || Email,
         Password: hashedPassword,
         Phone: Phone || null,
         Address: Address || null,
@@ -43,6 +45,10 @@ class CustomerService {
   // Find customer by ID
   async findById(id) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        return null;
+      }
+
       const doc = await db.collection(COLLECTION).doc(id).get();
       
       if (!doc.exists) {
@@ -63,6 +69,10 @@ class CustomerService {
   // Find customer by ID with password (for authentication)
   async findByIdWithPassword(id) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        return null;
+      }
+
       const doc = await db.collection(COLLECTION).doc(id).get();
       
       if (!doc.exists) {
@@ -81,8 +91,14 @@ class CustomerService {
   // Find customer by email
   async findByEmail(email) {
     try {
+      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+      if (!normalizedEmail) {
+        return null;
+      }
+
       const snapshot = await db.collection(COLLECTION)
-        .where('Email', '==', email)
+        .where('Email', '==', normalizedEmail)
         .limit(1)
         .get();
 
@@ -104,8 +120,14 @@ class CustomerService {
   // Find customer by email with password (for authentication)
   async findByEmailWithPassword(email) {
     try {
+      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+      if (!normalizedEmail) {
+        return null;
+      }
+
       const snapshot = await db.collection(COLLECTION)
-        .where('Email', '==', email)
+        .where('Email', '==', normalizedEmail)
         .limit(1)
         .get();
 
@@ -141,6 +163,10 @@ class CustomerService {
   // Update customer
   async update(id, updateData) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        throw new Error('Invalid customer ID');
+      }
+
       const { Password, ...otherData } = updateData;
       
       const dataToUpdate = {
@@ -161,9 +187,31 @@ class CustomerService {
     }
   }
 
+  // Find customer by ID including password (for password change)
+  async findByIdWithPassword(id) {
+    try {
+      const doc = await db.collection(COLLECTION).doc(id).get();
+      
+      if (!doc.exists) {
+        return null;
+      }
+
+      return {
+        ID: doc.id,
+        ...doc.data()
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Delete customer
   async delete(id) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        throw new Error('Invalid customer ID');
+      }
+
       await db.collection(COLLECTION).doc(id).delete();
       return true;
     } catch (error) {

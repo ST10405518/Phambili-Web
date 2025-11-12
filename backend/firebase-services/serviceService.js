@@ -8,6 +8,8 @@ class ServiceService {
     try {
       const newService = {
         ...serviceData,
+        Name: typeof serviceData.Name === 'string' ? serviceData.Name.trim() : serviceData.Name,
+        Description: typeof serviceData.Description === 'string' ? serviceData.Description.trim() : serviceData.Description,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -26,6 +28,10 @@ class ServiceService {
   // Find service by ID
   async findById(id) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        return null;
+      }
+
       const doc = await db.collection(COLLECTION).doc(id).get();
       
       if (!doc.exists) {
@@ -58,8 +64,14 @@ class ServiceService {
   // Update service
   async update(id, updateData) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        throw new Error('Invalid service ID');
+      }
+
       const dataToUpdate = {
         ...updateData,
+        ...(typeof updateData.Name === 'string' ? { Name: updateData.Name.trim() } : {}),
+        ...(typeof updateData.Description === 'string' ? { Description: updateData.Description.trim() } : {}),
         updatedAt: new Date().toISOString()
       };
 
@@ -74,6 +86,10 @@ class ServiceService {
   // Delete service
   async delete(id) {
     try {
+      if (!id || typeof id !== 'string' || !id.trim()) {
+        throw new Error('Invalid service ID');
+      }
+
       await db.collection(COLLECTION).doc(id).delete();
       return true;
     } catch (error) {

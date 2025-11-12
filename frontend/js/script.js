@@ -682,13 +682,199 @@ let cartItems = [];
 
 // ========== FORGOT PASSWORD FUNCTIONALITY ==========
 
+// ========== PASSWORD RESET TOKEN HANDLING ==========
+
+// Check for reset token when page loads
+function checkResetToken() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const showReset = urlParams.get('showReset');
+  
+  if (token && showReset === 'true') {
+    // Open reset password modal with the token
+    openResetPasswordModal(token);
+    
+    // Clean the URL (remove parameters from address bar)
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+// Open reset password modal with token
+function openResetPasswordModal(token) {
+  // Close any open modals first
+  removeForgotPasswordModal();
+  
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay reset-password-overlay';
+  modal.innerHTML = `
+    <div class="modal reset-password-modal">
+      <button class="modal-close" onclick="closeResetPasswordModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      
+      <div class="modal-header">
+        <h2><i class="fas fa-lock"></i> Set New Password</h2>
+        <p>Enter your new password below.</p>
+      </div>
+      
+      <div class="modal-body">
+        <div id="reset-password-success" class="auth-success" style="display: none">
+          <i class="fas fa-check-circle"></i>
+          <span id="reset-password-success-text"></span>
+        </div>
+        
+        <div id="reset-password-error" class="auth-error-message" style="display: none">
+          <i class="fas fa-exclamation-circle"></i>
+          <span id="reset-password-error-text"></span>
+        </div>
+        
+        <form id="reset-password-form">
+          <input type="hidden" id="reset-token" value="${token}" />
+          
+          <div class="auth-form-group">
+            <label for="new-password" class="auth-label">New Password</label>
+            <input type="password" id="new-password" class="auth-input" 
+                   placeholder="Enter new password" required minlength="6" />
+          </div>
+          
+          <div class="auth-form-group">
+            <label for="confirm-password" class="auth-label">Confirm Password</label>
+            <input type="password" id="confirm-password" class="auth-input" 
+                   placeholder="Confirm new password" required minlength="6" />
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="auth-btn">
+              <i class="fas fa-save"></i> Reset Password
+            </button>
+          </div>
+        </form>
+        
+        <div class="auth-footer-links">
+          <p>Remember your password? <a href="#" onclick="closeResetPasswordModal(); switchToLogin();">Back to Login</a></p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.classList.add('modal-open');
+
+  // Setup form handler
+  const form = document.getElementById('reset-password-form');
+  form.addEventListener('submit', handleResetPasswordSubmit);
+}
+
+function closeResetPasswordModal() {
+  const overlay = document.querySelector('.modal-overlay.reset-password-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+  document.body.classList.remove('modal-open');
+}
+
+// Handle reset password submission
+async function handleResetPasswordSubmit(e) {
+  e.preventDefault();
+  
+  const token = document.getElementById('reset-token').value;
+  const newPassword = document.getElementById('new-password').value;
+  const confirmPassword = document.getElementById('confirm-password').value;
+  
+  const submitBtn = this.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+
+  // Hide previous messages
+  const successEl = document.getElementById('reset-password-success');
+  const errorEl = document.getElementById('reset-password-error');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl) errorEl.style.display = 'none';
+
+  // Validation
+  if (newPassword !== confirmPassword) {
+    showResetPasswordError('Passwords do not match.');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showResetPasswordError('Password must be at least 6 characters long.');
+    return;
+  }
+
+  try {
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+
+    if (window.beautifulLoader) {
+      window.beautifulLoader.show('Resetting your password...');
+    }
+
+    const response = await window.apiClient.post('/auth/reset-password', {
+      token: token,
+      newPassword: newPassword
+    });
+
+    if (window.beautifulLoader) {
+      window.beautifulLoader.hide();
+    }
+
+    if (response.success) {
+      showResetPasswordSuccess('Password reset successfully! You can now login with your new password.');
+      
+      // Clear form
+      document.getElementById('reset-password-form').reset();
+      
+      // Auto-close after 2 seconds
+      setTimeout(() => {
+        closeResetPasswordModal();
+      }, 2000);
+    }
+
+  } catch (error) {
+    if (window.beautifulLoader) {
+      window.beautifulLoader.hide();
+    }
+    
+    const errorMessage = error.response?.data?.message ||
+      'Failed to reset password. The link may have expired.';
+    showResetPasswordError(errorMessage);
+
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  }
+}
+
+function showResetPasswordError(message) {
+  const errorEl = document.getElementById('reset-password-error');
+  const errorText = document.getElementById('reset-password-error-text');
+  if (errorEl && errorText) {
+    errorText.textContent = message;
+    errorEl.style.display = 'block';
+  }
+}
+
+function showResetPasswordSuccess(message) {
+  const successEl = document.getElementById('reset-password-success');
+  const successText = document.getElementById('reset-password-success-text');
+  if (successEl && successText) {
+    successText.textContent = message;
+    successEl.style.display = 'block';
+  }
+}
+
+// ========== FORGOT PASSWORD FUNCTIONALITY ==========
+
 // Show Forgot Password Modal
 function showForgotPasswordModal() {
+  removeForgotPasswordModal();
+
   const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
+  modal.className = 'modal-overlay forgot-password-overlay';
   modal.innerHTML = `
     <div class="modal forgot-password-modal">
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
+      <button class="modal-close" onclick="closeForgotPasswordModal()">
         <i class="fas fa-times"></i>
       </button>
       
@@ -730,10 +916,23 @@ function showForgotPasswordModal() {
   `;
 
   document.body.appendChild(modal);
+  document.body.classList.add('modal-open');
 
   // Setup form handler
   const form = document.getElementById('forgot-password-form');
   form.addEventListener('submit', handleForgotPasswordSubmit);
+}
+
+function closeForgotPasswordModal() {
+  const overlay = document.querySelector('.modal-overlay.forgot-password-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+  document.body.classList.remove('modal-open');
+}
+
+function removeForgotPasswordModal() {
+  closeForgotPasswordModal();
 }
 
 // Handle Forgot Password Submission
@@ -783,10 +982,7 @@ async function handleForgotPasswordSubmit(e) {
 
       // Auto-close after 3 seconds
       setTimeout(() => {
-        const modal = document.querySelector('.forgot-password-modal');
-        if (modal) {
-          modal.closest('.modal-overlay').remove();
-        }
+        removeForgotPasswordModal();
       }, 3000);
     }
 
@@ -824,15 +1020,14 @@ function showForgotPasswordSuccess(message) {
 }
 
 function switchToLogin() {
-  const modal = document.querySelector('.forgot-password-modal');
-  if (modal) {
-    modal.closest('.modal-overlay').remove();
-  }
+  removeForgotPasswordModal();
   // Switch to login tab if on auth page
   if (window.location.pathname.includes('login.html')) {
     switchTab('login');
   }
 }
+
+// ========== REST OF YOUR EXISTING CODE FOLLOWS BELOW ==========
 
 // ========== ENHANCED LOGIN ERROR HANDLING ==========
 function showLoginError(message) {
@@ -2199,6 +2394,9 @@ function initializeGallery() {
 document.addEventListener('DOMContentLoaded', function () {
   // Show initial loading
   window.beautifulLoader.show('Loading Phambili Services...');
+
+  // Check for reset password token in URL
+  checkResetToken();
 
   // Initialize header scroll
   handleHeaderScroll();

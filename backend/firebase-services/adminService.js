@@ -105,6 +105,24 @@ class AdminService {
     }
   }
 
+  // Find admin by ID including password (for password change)
+  async findByIdWithPassword(id) {
+    try {
+      const doc = await db.collection(COLLECTION).doc(id).get();
+      
+      if (!doc.exists) {
+        return null;
+      }
+
+      return {
+        ID: doc.id,
+        ...doc.data()
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Get all admins
   async findAll() {
     try {
