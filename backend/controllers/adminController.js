@@ -15,7 +15,7 @@ const jwt = require('jsonwebtoken');
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    console.log('📊 Fetching dashboard stats for user:', req.user.id);
+    // Fetching dashboard stats
 
     // Get current admin to check role
     const currentAdmin = await adminService.findById(req.user.id);
@@ -64,7 +64,7 @@ exports.getDashboardStats = async (req, res) => {
       })
     };
 
-    console.log('✅ Dashboard stats calculated:', stats);
+    // Dashboard stats calculated
 
     // Return consistent response format
     res.json({
@@ -314,7 +314,7 @@ exports.deleteService = async (req, res) => {
       try {
         await storageService.deleteFile(service.Image_URL);
       } catch (err) {
-        console.log('Could not delete service image:', err.message);
+        // Could not delete service image
       }
     }
 
@@ -474,7 +474,7 @@ exports.deleteProduct = async (req, res) => {
       try {
         await storageService.deleteFile(product.Image_URL);
       } catch (err) {
-        console.log('Could not delete product image:', err.message);
+        // Could not delete product image
       }
     }
 
@@ -755,7 +755,7 @@ exports.deleteGalleryMedia = async (req, res) => {
       try {
         await storageService.deleteFile(media.url);
       } catch (err) {
-        console.log('Could not delete media file:', err.message);
+        // Could not delete media file
       }
     }
 

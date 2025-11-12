@@ -81,9 +81,90 @@ class EnhancedAPIClient {
     this.maxConcurrentRequests = 2;
     this.activeRequests = 0;
     this.isPaused = false;
+    this.requestCache = new Map();
+    this.requestThrottle = new Map();
+    this.throttleDelay = 100; // 100ms between similar requests
+    this.maxCacheSize = 100; // Maximum number of cached responses
+  }
+
+  // Generate cache key for request
+  getCacheKey(method, endpoint, data) {
+    return `${method}:${endpoint}:${JSON.stringify(data || {})}`;
+  }
+
+  // Check if request should be throttled
+  shouldThrottle(cacheKey) {
+    const lastRequest = this.requestThrottle.get(cacheKey);
+    if (lastRequest && Date.now() - lastRequest < this.throttleDelay) {
+      return true;
+    }
+    return false;
+  }
+
+  // Cache response for GET requests
+  cacheResponse(cacheKey, response, ttl = 300000) { // 5 minutes default
+    // Remove oldest entries if cache is full
+    if (this.requestCache.size >= this.maxCacheSize) {
+      const oldestKey = this.requestCache.keys().next().value;
+      this.requestCache.delete(oldestKey);
+    }
+    
+    this.requestCache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now(),
+      ttl: ttl
+    });
+  }
+
+  // Clear cache manually
+  clearCache() {
+    this.requestCache.clear();
+    this.requestThrottle.clear();
+  }
+
+  // Clear expired cache entries
+  cleanupCache() {
+    const now = Date.now();
+    for (const [key, value] of this.requestCache.entries()) {
+      if (now - value.timestamp > value.ttl) {
+        this.requestCache.delete(key);
+      }
+    }
+  }
+
+  // Get cached response if valid
+  getCachedResponse(cacheKey) {
+    const cached = this.requestCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      return cached.data;
+    }
+    if (cached) {
+      this.requestCache.delete(cacheKey);
+    }
+    return null;
   }
 
   async request(method, endpoint, data = null, options = {}) {
+    const cacheKey = this.getCacheKey(method, endpoint, data);
+    
+    // Return cached response for GET requests
+    if (method === 'GET' && !options.skipCache) {
+      const cached = this.getCachedResponse(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    // Throttle similar requests
+    if (this.shouldThrottle(cacheKey) && !options.urgent) {
+      await new Promise(resolve => setTimeout(resolve, this.throttleDelay));
+    }
+
+    // Check if same request is already pending
+    if (this.pendingRequests.has(cacheKey)) {
+      return await this.pendingRequests.get(cacheKey);
+    }
+
     // Wait for global rate limit
     await window.rateLimitManager.waitForGlobalRateLimit();
 
@@ -111,7 +192,25 @@ class EnhancedAPIClient {
       });
     }
 
-    return this.executeRequest(method, endpoint, data, options);
+    // Create and track the request promise
+    const requestPromise = this.executeRequest(method, endpoint, data, options);
+    this.pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      
+      // Cache GET responses
+      if (method === 'GET' && !options.skipCache) {
+        this.cacheResponse(cacheKey, result, options.cacheTTL);
+      }
+      
+      // Update throttle timestamp
+      this.requestThrottle.set(cacheKey, Date.now());
+      
+      return result;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
   }
 
   async processQueue() {
@@ -136,19 +235,20 @@ class EnhancedAPIClient {
       request.reject(error);
     } finally {
       this.activeRequests--;
-      // Process next request with a small delay
-      setTimeout(() => this.processQueue(), 50);
+      // Process next request in queue
+      setTimeout(() => this.processQueue(), 10);
     }
   }
 
   async executeRequest(method, endpoint, data = null, options = {}) {
-    // Show loading for non-background requests
-    if (!options.background) {
-      window.beautifulLoader.show(options.loadingMessage || 'Processing your request...');
-    }
+    const timeout = options.timeout || 30000;
+    const timeoutId = setTimeout(() => {
+      throw new Error('Request timeout');
+    }, timeout);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout || 20000);
+    if (!options.background) {
+      window.beautifulLoader.show(options.loadingMessage || 'Loading...');
+    }
 
     try {
       const config = {
@@ -157,51 +257,28 @@ class EnhancedAPIClient {
           'Content-Type': 'application/json',
           ...options.headers
         },
-        signal: controller.signal
+        signal: AbortSignal.timeout(timeout)
       };
 
       if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
         config.body = JSON.stringify(data);
       }
 
-      console.log(`🌐 Making ${method} request to: ${endpoint}`);
-
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
 
-      // Handle rate limiting from server
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('retry-after') || 5;
-        this.showRateLimitNotification(retryAfter * 1000);
-        throw new Error(`Rate limited by server. Please try again in ${retryAfter} seconds.`);
-      }
-
-      // Check if response is OK
       if (!response.ok) {
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
-        } catch {
-          errorMessage = `HTTP error! status: ${response.status}`;
-        }
-
-        const error = new Error(errorMessage);
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
         error.status = response.status;
+        error.response = { status: response.status, data: errorData };
         throw error;
       }
 
-      // Parse response
-      const responseData = await response.json();
-      return responseData;
+      return await response.json();
 
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error('Request timeout. Please check your connection and try again.');
-      }
-
-      // Don't show rate limit notification again if we already showed it
-      if (error.message.includes('Rate limited')) {
-        throw error;
       }
 
       if (error.status === 429) {
@@ -218,9 +295,29 @@ class EnhancedAPIClient {
     }
   }
 
+  // Convenience methods
+  async get(endpoint, options = {}) {
+    return this.request('GET', endpoint, null, { ...options, cacheTTL: options.cacheTTL || 300000 });
+  }
+
+  async post(endpoint, data, options = {}) {
+    return this.request('POST', endpoint, data, options);
+  }
+
+  async put(endpoint, data, options = {}) {
+    return this.request('PUT', endpoint, data, options);
+  }
+
+  async delete(endpoint, options = {}) {
+    return this.request('DELETE', endpoint, null, options);
+  }
+
   // Enhanced error handling with better user feedback
   handleError(error) {
-    console.log('🔧 Error details:', error);
+    // Error details logged in development mode only
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🔧 Error details:', error);
+    }
 
     if (error.message?.includes('timeout')) {
       return new Error('Request timeout. Please check your connection and try again.');
@@ -1060,6 +1157,11 @@ window.rateLimitManager = new RateLimitManager();
 window.beautifulLoader = new BeautifulLoader();
 window.apiClient = new EnhancedAPIClient();
 
+// Cleanup cache every 10 minutes
+setInterval(() => {
+  window.apiClient.cleanupCache();
+}, 600000);
+
 // ========== GLOBAL VARIABLES ==========
 let cartItems = [];
 
@@ -1617,7 +1719,10 @@ function handleHeaderScroll() {
 
 // Global error handler
 window.addEventListener('error', function (e) {
-  console.log('Global error caught:', e.error);
+  // Global error logged in development mode only
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('Global error caught:', e.error);
+  }
 
   if (e.error?.message?.includes('rate') || e.error?.message?.includes('too many')) {
     return;
@@ -2448,14 +2553,15 @@ let currentFilter = 'all';
 
 async function loadGalleryItems() {
   try {
-    console.log('🔄 Loading gallery items from API...');
+    // Loading gallery items from API...
 
     const response = await window.apiClient.get('/gallery/media', {
       background: true,
-      timeout: 10000
+      timeout: 10000,
+      cacheTTL: 600000 // Cache for 10 minutes
     });
 
-    console.log('✅ Gallery API response:', response);
+    // Gallery API response received
 
     // Handle different response structures
     let mediaItems = [];
@@ -2532,7 +2638,7 @@ function renderGalleryItems(mediaItems) {
     galleryGrid.appendChild(galleryItem);
   });
 
-  console.log(`✅ Rendered ${mediaItems.length} gallery items in masonry layout`);
+  // Rendered gallery items in masonry layout
 
   // Initialize interactions after rendering
   initializeGalleryInteractions();
@@ -2599,7 +2705,7 @@ function initializeVideoAutoplay() {
     // Try to autoplay with a small delay between videos
     setTimeout(() => {
       video.play().catch(error => {
-        console.log(`Video ${index} autoplay prevented:`, error);
+        // Video autoplay prevented - showing play button
         // Enhanced fallback for failed autoplay
         const videoIcon = video.nextElementSibling;
         if (videoIcon && videoIcon.classList.contains('video-icon')) {
@@ -2616,11 +2722,10 @@ function initializeGalleryInteractions() {
   const filterButtons = document.querySelectorAll('.filter-btn');
   const galleryItems = document.querySelectorAll('.gallery-item');
 
-  console.log(`🔍 Found ${filterButtons.length} filter buttons`);
-  console.log(`🔍 Found ${galleryItems.length} gallery items after rendering`);
+  // Gallery filter buttons and items initialized
 
   if (galleryItems.length === 0) {
-    console.warn('❌ No gallery items found after rendering');
+    // No gallery items found after rendering
     return;
   }
 
@@ -2656,7 +2761,7 @@ function initializeGalleryInteractions() {
 
       // Try to play video
       video.play().catch(error => {
-        console.log('Video play on hover failed:', error);
+        // Video play on hover failed
       });
     });
 
@@ -2910,13 +3015,11 @@ function initializeGallery() {
   const galleryGrid = document.querySelector('.gallery-grid');
   const loadingGallery = document.querySelector('.loading-gallery');
 
-  console.log('🎨 Initializing gallery...');
-  console.log('📁 Gallery grid:', galleryGrid);
-  console.log('⏳ Loading gallery element:', loadingGallery);
+  // Initializing gallery...
 
   // If no gallery elements found at all, exit gracefully
   if (!galleryGrid && !loadingGallery) {
-    console.log('ℹ️ No gallery section found on this page');
+    // No gallery section found on this page
     return;
   }
 
@@ -2933,11 +3036,11 @@ function initializeServicesCarousel() {
   const progressBar = document.querySelector('.home-progress-bar');
 
   if (!track || cards.length === 0) {
-    console.log('❌ No carousel elements found');
+    // No carousel elements found
     return;
   }
 
-  console.log(`🎠 Initializing carousel with ${cards.length} cards`);
+  // Initializing carousel
 
   let currentPosition = 0;
   let autoScrollInterval;
@@ -2979,7 +3082,7 @@ function initializeServicesCarousel() {
     const translateX = -currentPosition * cardWidth;
     track.style.transform = `translateX(${translateX}px)`;
 
-    console.log(`🔄 Carousel: position ${currentPosition}, translate ${translateX}px, max ${maxPosition}`);
+    // Carousel position updated
 
     // Update progress bar
     if (progressBar) {
@@ -3149,7 +3252,7 @@ function initializeServicesCarousel() {
     startAutoScroll();
     setupEventListeners();
 
-    console.log('✅ Carousel initialized successfully');
+    // Carousel initialized successfully
   }
 
   // Start the carousel
@@ -3377,7 +3480,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       } catch (error) {
         window.beautifulLoader.hide();
-        console.log("Register error:", error.response?.data);
+        // Registration error occurred
         const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
         const errorBox = document.getElementById('register-error');
         if (errorBox) {
@@ -3438,7 +3541,7 @@ document.addEventListener('DOMContentLoaded', function () {
           loadingMessage: 'Authenticating...'
         });
 
-        console.log('Login response:', response);
+        // Login response received
 
         await waitForAuthManager();
 
@@ -3689,11 +3792,11 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ========== GALLERY FUNCTIONALITY ==========
-  console.log('🎨 Initializing gallery...');
+  // Initializing gallery...
   initializeGallery();
 
   // ========== SERVICES CAROUSEL INITIALIZATION ==========
-  console.log('🚀 Initializing services carousel...');
+  // Initializing services carousel...
   setTimeout(() => {
     initializeServicesCarousel();
   }, 1000);
@@ -3705,7 +3808,7 @@ window.addEventListener('beforeunload', function () {
 });
 
 window.addEventListener('online', function () {
-  console.log('Connection restored');
+  // Connection restored
   window.rateLimitManager.clear();
 });
 

@@ -42,7 +42,7 @@ class AdminAPIService {
         // Upload tracking to prevent duplicates
         this.pendingUploads = new Map();
 
-        console.log('🔄 AdminAPIService initialized with enhanced rate limiting');
+        // AdminAPIService initialized with enhanced rate limiting
     }
 
     // ==================== ENHANCED RATE LIMIT DETECTION ====================
@@ -81,10 +81,10 @@ class AdminAPIService {
                 }
             }
 
-            console.log(`📊 Rate Limit: ${this.rateLimitState.remaining}/${this.rateLimitState.limit}, Resets: ${new Date(this.rateLimitState.resetTime).toLocaleTimeString()}`);
+            // Rate limit status updated
 
         } catch (error) {
-            console.warn('Failed to parse rate limit headers:', error);
+            // Failed to parse rate limit headers
         }
     }
 
@@ -112,7 +112,7 @@ class AdminAPIService {
         if (this.rateLimitState.remaining <= 0) {
             if (now < this.rateLimitState.resetTime) {
                 const waitTime = this.rateLimitState.resetTime - now;
-                console.log(`⏳ Rate limit exceeded. Waiting ${Math.round(waitTime / 1000)}s`);
+                // Rate limit exceeded, waiting
                 return waitTime;
             } else {
                 // Reset period passed, reset counter
@@ -153,7 +153,7 @@ class AdminAPIService {
                 retries: 0
             });
 
-            console.log(`📨 Queued request: ${requestId} (Queue size: ${this.requestQueue.length})`);
+            // Request queued
             this.processQueue();
         });
     }
@@ -167,7 +167,7 @@ class AdminAPIService {
 
         const throttleDelay = this.shouldThrottle();
         if (throttleDelay > 0) {
-            console.log(`⏸️ Throttling requests for ${Math.round(throttleDelay)}ms`);
+            // Throttling requests
             this.isPaused = true;
             setTimeout(() => {
                 this.isPaused = false;
@@ -181,7 +181,7 @@ class AdminAPIService {
 
         // Remove stale requests (older than 30 seconds)
         if (Date.now() - request.timestamp > 30000) {
-            console.log('🗑️ Removing stale request from queue');
+            // Removing stale request from queue
             request.reject(new Error('Request timeout - took too long to process'));
             this.activeRequests--;
             this.processQueue();
@@ -189,7 +189,7 @@ class AdminAPIService {
         }
 
         try {
-            console.log(`🔄 Processing request: ${request.requestId}`);
+            // Processing request
             const result = await request.requestFn();
 
             // Cache successful responses
@@ -204,7 +204,7 @@ class AdminAPIService {
                 request.retries++;
                 const retryDelay = this.calculateRetryDelay(error, request.retries);
 
-                console.log(`🔄 Rate limited. Requeuing in ${Math.round(retryDelay / 1000)}s (Attempt ${request.retries})`);
+                // Rate limited, requeuing with backoff
 
                 setTimeout(() => {
                     this.requestQueue.unshift(request);
@@ -231,7 +231,7 @@ class AdminAPIService {
         this.metrics.totalRequests++;
 
         try {
-            console.log(`🔄 Making ${method} request to: ${endpoint}`);
+            // Making API request
 
             const config = {
                 method,
@@ -262,7 +262,7 @@ class AdminAPIService {
                 throw this.createErrorFromResponse(response);
             }
 
-            console.log(`✅ ${method} ${endpoint} successful`);
+            // API request successful
             return response.data;
         } catch (error) {
             this.metrics.failedRequests++;
@@ -300,7 +300,7 @@ class AdminAPIService {
 
         // Check if same file is already uploading
         if (this.pendingUploads.has(uploadKey)) {
-            console.log('🔄 Skipping duplicate upload request');
+            // Skipping duplicate upload request
             return this.pendingUploads.get(uploadKey);
         }
 
@@ -320,7 +320,7 @@ class AdminAPIService {
     getFromCache(key) {
         const cached = this.cache.get(key);
         if (cached && Date.now() < cached.expiry) {
-            console.log(`📦 Using cached response for: ${key.split(':')[1]}`);
+            // Using cached response
             return cached.data;
         }
         if (cached) {
@@ -358,10 +358,10 @@ class AdminAPIService {
                     this.cache.delete(key);
                 }
             }
-            console.log(`🗑️ Cleared cache for: ${pattern}`);
+            // Cache cleared for pattern
         } else {
             this.cache.clear();
-            console.log('🗑️ Cleared all cache');
+            // All cache cleared
         }
     }
 
@@ -393,7 +393,7 @@ class AdminAPIService {
     // ==================== FALLBACK DATA ====================
 
     getMockBookings(limit = 5) {
-        console.log('📋 Using mock bookings data');
+        // Using mock bookings data
         return {
             bookings: Array.from({ length: limit }, (_, i) => ({
                 ID: i + 1,
@@ -441,12 +441,12 @@ class AdminAPIService {
 
     pauseRequests() {
         this.isPaused = true;
-        console.log('⏸️ Requests paused');
+        // Requests paused
     }
 
     resumeRequests() {
         this.isPaused = false;
-        console.log('▶️ Requests resumed');
+        // Requests resumed
         this.processQueue();
     }
 
@@ -454,7 +454,7 @@ class AdminAPIService {
         const pending = this.requestQueue.length;
         this.requestQueue = [];
         this.pendingUploads.clear();
-        console.log(`🗑️ Cleared ${pending} pending requests`);
+        // Cleared pending requests
     }
 
     getQueueStatus() {
@@ -683,7 +683,7 @@ class EnhancedAdminDashboard {
 
     async loadRecentBookings(limit = 5) {
         try {
-            console.log('🔄 Loading recent bookings...');
+            // Loading recent bookings...
             const bookingsData = await this.api.getBookings({ limit });
             this.retryAttempts = 0;
             this.renderBookings(bookingsData.bookings);
@@ -733,7 +733,7 @@ class EnhancedAdminDashboard {
     }
 
     renderBookings(bookings) {
-        console.log('📊 Rendering bookings:', bookings);
+        // Rendering bookings
 
         // Update UI with bookings data
         const container = document.getElementById('recent-bookings-container');
@@ -750,7 +750,7 @@ class EnhancedAdminDashboard {
     }
 
     showNotification(message, type = 'info') {
-        console.log(`📢 ${type.toUpperCase()}: ${message}`);
+        // Notification displayed
 
         // Example: Show toast notification
         if (window.showToast) {
@@ -763,7 +763,7 @@ class EnhancedAdminDashboard {
         setInterval(async () => {
             try {
                 const status = this.api.getQueueStatus();
-                console.log('🔍 API Status:', status);
+                // API status checked
 
                 // If we have rate limit remaining, try to fetch fresh data
                 if (status.rateLimit.remaining > 3 && !this.api.isPaused) {
@@ -798,7 +798,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Initialize API service
 window.adminAPI = new AdminAPIService();
-console.log('✅ AdminAPI service initialized with enhanced rate limiting');
+// AdminAPI service initialized with enhanced rate limiting
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

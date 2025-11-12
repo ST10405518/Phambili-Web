@@ -8,7 +8,7 @@ class AdminDashboard {
     this.initializationAttempts = 0;
     this.maxInitializationAttempts = 3;
     this.retryDelay = 2000;
-    console.log('🚀 AdminDashboard initialized');
+    // AdminDashboard initialized
   }
 
   // Get stored section from localStorage
@@ -22,11 +22,11 @@ class AdminDashboard {
   }
 
   async init() {
-    console.log('🚀 AdminDashboard init started');
+    // AdminDashboard init started
 
     // Prevent multiple initializations
     if (this.isInitialized) {
-      console.log('⚠️ Dashboard already initialized');
+      // Dashboard already initialized
       return;
     }
 
@@ -67,13 +67,13 @@ class AdminDashboard {
       this.updateAdminInfo();
 
       this.isInitialized = true;
-      console.log('🎉 AdminDashboard init completed');
+      // AdminDashboard init completed
 
     } catch (error) {
       console.error('❌ Dashboard initialization failed:', error);
 
       if (this.initializationAttempts < this.maxInitializationAttempts) {
-        console.log(`🔄 Retrying initialization (${this.initializationAttempts}/${this.maxInitializationAttempts})`);
+        // Retrying initialization
         setTimeout(() => this.init(), this.retryDelay);
       } else {
         this.showNotification('Failed to initialize dashboard. Please refresh the page.', 'error');
@@ -90,7 +90,7 @@ class AdminDashboard {
       if (response.success) {
         this.currentAdmin = response.admin;
         this.isMainAdmin = this.currentAdmin.Role === 'main_admin';
-        console.log(`👤 Admin role detected: ${this.currentAdmin.Role}`);
+        // Admin role detected
       }
     } catch (error) {
       console.error('Error loading admin profile for permissions:', error);
@@ -103,7 +103,7 @@ class AdminDashboard {
   // Add method to setup UI based on role
   setupUIForRole() {
     try {
-      console.log(`🎨 Setting up UI for ${this.isMainAdmin ? 'Main Admin' : 'Sub Admin'}`);
+      // Setting up UI for admin role
 
       // Hide restricted tabs for sub-admins
       if (!this.isMainAdmin) {
@@ -126,7 +126,7 @@ class AdminDashboard {
           const listItem = tabElement.closest('li[role="presentation"]');
           if (listItem) {
             listItem.style.display = 'none';
-            console.log(`🚫 Hiding tab: ${tab}`);
+            // Hiding restricted tab
           }
         }
       });
@@ -177,7 +177,7 @@ class AdminDashboard {
     try {
       // Use stored section or default to dashboard
       const targetSection = this.currentSection;
-      console.log(`🎯 Restoring section: ${targetSection}`);
+      // Restoring section
 
       // Show the stored section
       this.showSection(targetSection, false); // false = don't store again
@@ -192,7 +192,7 @@ class AdminDashboard {
   // In admin-dashboard.js - Fix the showSection method
   showSection(section, store = true) {
     try {
-      console.log('Showing section:', section);
+      // Showing section
 
       // Check if sub-admin is trying to access restricted section
       if (!this.isMainAdmin) {
@@ -275,7 +275,7 @@ class AdminDashboard {
         // Continue anyway, but with limited functionality
       }
 
-      console.log('✅ Admin API check passed');
+      // Admin API check passed
       return true;
     } catch (error) {
       console.error('❌ API check failed:', error);
@@ -286,19 +286,19 @@ class AdminDashboard {
 
   async testAPIConnection() {
     try {
-      console.log('🔗 Testing admin API connection...');
+      // Testing admin API connection...
 
       // Check if testConnection method exists
       if (typeof this.api.testConnection !== 'function') {
-        console.warn('⚠️ testConnection method not available, using getAdminProfile instead');
+        // testConnection method not available, using fallback
         // Fallback: try to get admin profile as connection test
         await this.api.getAdminProfile();
-        console.log('✅ Admin API connection successful (via fallback)');
+        // Admin API connection successful (via fallback)
         return true;
       }
 
       const response = await this.api.testConnection();
-      console.log('✅ Admin API connection successful:', response);
+      // Admin API connection successful
       return true;
     } catch (error) {
       console.error('❌ Admin API connection failed:', error);
@@ -348,7 +348,7 @@ class AdminDashboard {
 
   checkAuth() {
     try {
-      console.log('🔐 Checking authentication...');
+      // Checking authentication...
 
       // Use your existing authManager
       if (!window.authManager) {
@@ -378,7 +378,7 @@ class AdminDashboard {
         return false;
       }
 
-      console.log('✅ Authentication successful - User is admin');
+      // Authentication successful - User is admin
       return true;
     } catch (error) {
       console.error('❌ Authentication check failed:', error);
@@ -426,12 +426,13 @@ class AdminDashboard {
       try {
         // Use the booking stats endpoint which seems to have the data
         response = await this.api.getBookingStats();
-        console.log('📊 Raw stats response:', response);
+        // Raw stats response received
       } catch (apiError) {
-        console.warn('⚠️ Booking stats API failed, trying dashboard stats:', apiError);
+        // Booking stats API failed, trying dashboard stats
         try {
           response = await this.api.getDashboardStats();
         } catch (dashboardError) {
+          console.warn(' All stats APIs failed, using fallback:', dashboardError);
           console.warn('⚠️ All stats APIs failed, using fallback:', dashboardError);
           response = { stats: this.getFallbackStats() };
         }
@@ -451,7 +452,7 @@ class AdminDashboard {
         normalizedStats = response;
       }
 
-      console.log('✅ Normalized stats:', normalizedStats);
+      // Normalized stats processed
       this.updateStatsCards(normalizedStats);
 
     } catch (error) {
@@ -474,7 +475,7 @@ class AdminDashboard {
   }
   updateStatsCards(stats) {
     try {
-      console.log('📊 Updating stats cards with data:', stats);
+      // Updating stats cards with data
 
       // Normalize response - handle both nested and flat structures
       let normalizedStats = stats;
@@ -487,7 +488,7 @@ class AdminDashboard {
         normalizedStats = stats.data;
       }
 
-      console.log('🔄 Normalized stats for display:', normalizedStats);
+      // Normalized stats for display
 
       const revenueEl = document.getElementById('totalRevenue');
       const bookingsEl = document.getElementById('totalBookings');
@@ -517,12 +518,7 @@ class AdminDashboard {
         pendingEl.textContent = pendingBookings;
       }
 
-      console.log('✅ Stats cards updated:', {
-        totalRevenue,
-        totalBookings,
-        totalCustomers,
-        pendingBookings
-      });
+      // Stats cards updated successfully
 
     } catch (error) {
       console.error('❌ Error updating stats cards:', error, stats);
@@ -537,7 +533,7 @@ class AdminDashboard {
     const customersEl = document.getElementById('totalCustomers');
     const pendingEl = document.getElementById('pendingBookings');
 
-    if (revenueEl) revenueEl.textContent = 'R 0.00';
+    if (revenueEl) revenueEl.textContent = 'R -.--';
     if (bookingsEl) bookingsEl.textContent = '0';
     if (customersEl) customersEl.textContent = '0';
     if (pendingEl) pendingEl.textContent = '0';
@@ -634,7 +630,7 @@ class AdminDashboard {
 
   setupEventListeners() {
     try {
-      console.log('Setting up event listeners...');
+      // Setting up event listeners...
 
       // Logout button
       const logoutBtn = document.getElementById('logoutBtn');
@@ -672,7 +668,7 @@ class AdminDashboard {
       if (serviceForm) {
         serviceForm.addEventListener('submit', async (e) => {
           e.preventDefault();
-          console.log('🔄 Service form submitted');
+          // Service form submitted
 
           const formData = new FormData(serviceForm);
           const serviceId = document.getElementById('service-id').value;
@@ -731,7 +727,7 @@ class AdminDashboard {
   // In admin-dashboard.js - Fix the setupNavigation method
   setupNavigation() {
     try {
-      console.log('Setting up navigation...');
+      // Setting up navigation...
 
       // Add gallery tab to sidebar if it doesn't exist
       this.setupGalleryNavigation();
@@ -884,7 +880,7 @@ class AdminDashboard {
 
   async loadSectionData(section) {
     try {
-      console.log('Loading section data:', section);
+      // Loading section data
       switch (section) {
         case 'dashboard':
           await this.loadDashboardStats();
@@ -912,7 +908,7 @@ class AdminDashboard {
           this.initGallerySection();
           break;
         default:
-          console.log('No specific data loader for section:', section);
+          // No specific data loader for section
       }
     } catch (error) {
       console.error(`Error loading ${section} data:`, error);
