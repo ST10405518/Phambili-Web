@@ -1,17 +1,21 @@
 // authController.js - Firebase-aware authentication handlers
 require('dotenv').config();
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const { db } = require('../firebaseConfig');
 const customerService = require('../firebase-services/customerService');
 const adminService = require('../firebase-services/adminService');
+const bookingService = require('../firebase-services/bookingService');
 const emailService = require('../utils/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-key';
 const RESET_TOKEN_COLLECTION = 'password_resets';
 const RESET_TOKEN_EXPIRES_IN = process.env.RESET_TOKEN_EXPIRES_IN || '1h';
+
+const SALT_ROUNDS = 10;
 
 /**
  * Normalize email input.
@@ -398,90 +402,249 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token and new password are required.'
+async function isAddressMatch(user, address) {
+  if (!user) return false;
+  
+  // Handle different possible address storage formats
+  let s1, c1, st1, p1;
+  
+  // Check if address is stored as separate fields
+  if (user.Address_Street || user.addressStreet || user.address_street) {
+    s1 = (user.Address_Street || user.addressStreet || user.address_street || '').trim().toLowerCase();
+    c1 = (user.Address_City || user.addressCity || user.address_city || '').trim().toLowerCase();
+    st1 = (user.Address_State || user.addressState || user.address_state || '').trim().toLowerCase();
+    p1 = (user.Address_Postal_Code || user.addressPostalCode || user.address_postal_code || '').trim().toLowerCase();
+  }
+  // Check if address is stored as an object
+  else if (user.Address && typeof user.Address === 'object') {
+    s1 = (user.Address.Address_Street || user.Address.street || '').trim().toLowerCase();
+    c1 = (user.Address.Address_City || user.Address.city || '').trim().toLowerCase();
+    st1 = (user.Address.Address_State || user.Address.state || '').trim().toLowerCase();
+    p1 = (user.Address.Address_Postal_Code || user.Address.postalCode || '').trim().toLowerCase();
+  }
+  // Check if address is stored as a formatted string (fallback)
+  else if (user.Address && typeof user.Address === 'string') {
+    // Try to match against formatted string address
+    const providedAddress = `${address.street}, ${address.city}, ${address.state}, ${address.postalCode}`;
+    const storedAddress = user.Address.trim();
+    const match = storedAddress.toLowerCase() === providedAddress.toLowerCase();
+    
+    if (!match) {
+      console.log('String address mismatch:', {
+        stored: storedAddress,
+        provided: providedAddress
       });
     }
-
-    if (!isValidPassword(newPassword)) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters long.'
-      });
-    }
-
-    let decoded;
+    
+    return match;
+  }
+  else {
+    // No address information found in customer record - check booking records
+    console.log('No address in customer record, checking booking history for address verification');
+    
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      // Check if customer has any bookings with matching address
+      const bookings = await bookingService.findByCustomerId(user.ID);
+      
+      if (bookings && bookings.length > 0) {
+        const providedAddress = `${address.street}, ${address.city}, ${address.state}, ${address.postalCode}`;
+        
+        // Check if any booking has a matching address
+        for (const booking of bookings) {
+          if (booking.Address && typeof booking.Address === 'string') {
+            const bookingAddress = booking.Address.trim();
+            if (bookingAddress.toLowerCase() === providedAddress.toLowerCase()) {
+              console.log('Address verified against booking record');
+              return true;
+            }
+          }
+        }
+        
+        console.log('No matching address found in booking records');
+        return false;
+      }
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired reset token.'
-      });
+      console.error('Error checking booking addresses:', error);
+    }
+    
+    console.warn('No address information found for user and no booking records');
+    return false;
+  }
+
+  const s2 = (address.street || '').trim().toLowerCase();
+  const c2 = (address.city || '').trim().toLowerCase();
+  const st2 = (address.state || '').trim().toLowerCase();
+  const p2 = (address.postalCode || '').trim().toLowerCase();
+
+  const match = s1 === s2 && c1 === c2 && st1 === st2 && p1 === p2;
+  
+  if (!match) {
+    console.log('Address mismatch details:', {
+      stored: { street: s1, city: c1, state: st1, postal: p1 },
+      provided: { street: s2, city: c2, state: st2, postal: p2 }
+    });
+  }
+
+  return match;
+}
+
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email, address } = req.body || {};
+
+    if (!email || !address) {
+      return res.status(400).json({ success: false, message: 'Email and address are required.' });
     }
 
-    if (decoded.purpose !== 'password_reset') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid reset token.'
-      });
-    }
-
-    const tokenDoc = await fetchResetToken(token);
-    if (!tokenDoc.exists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Reset token has already been used or is invalid.'
-      });
-    }
-
-    const tokenData = tokenDoc.data();
-    if (tokenData.expiresAt && new Date(tokenData.expiresAt).getTime() < Date.now()) {
-      await removeResetToken(token);
-      return res.status(400).json({
-        success: false,
-        message: 'Reset token has expired.'
-      });
-    }
-
-    const role = tokenData.role || decoded.role;
-    const userId = tokenData.userId || decoded.id;
-
-    const user = await findUserById(userId, role, { includePassword: true });
+    // Find the user by email
+    const user = await customerService.findByEmail(email);
+    // Security: don't reveal whether the email exists to the client
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found.'
-      });
+      // Respond with success (to avoid email enumeration) but log for debug
+      console.warn(`Password reset requested for unknown email: ${email}`);
+      return res.json({ success: false, message: 'The provided information does not match our records.' });
     }
 
-    const service = role === 'admin' ? adminService : customerService;
+    // Verify address matches stored record
+    const addressToMatch = {
+      street: address.Address_Street || address.street,
+      city: address.Address_City || address.city,
+      state: address.Address_State || address.state,
+      postalCode: address.Address_Postal_Code || address.postalCode
+    };
+    
+    console.log('Address verification debug:', {
+      userEmail: email,
+      storedAddress: user.Address,
+      providedAddress: addressToMatch,
+      addressType: typeof user.Address,
+      userId: user.ID
+    });
+    
+    if (!(await isAddressMatch(user, addressToMatch))) {
+      // Do not reveal mismatch. Return generic success message.
+      console.warn(`Password reset request for ${email} - address mismatch`);
+      return res.json({ success: false, message: 'The provided information does not match our records.' });
+    }
 
-    await service.update(userId, {
-      Password: newPassword,
-      ...(role === 'admin' ? { First_Login: false } : {})
+    // Create a secure verification token for immediate password reset
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+    // Set expiry (15 minutes for verification token)
+    const expires = Date.now() + (15 * 60 * 1000);
+
+    // Persist token hash and expiry on user record
+    await customerService.update(user.ID || user.id || user._id, {
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: new Date(expires).toISOString()
     });
 
-    await removeResetToken(token);
+    console.log(`Address verification successful for ${email}, verification token generated`);
 
-    console.log(`✅ Password reset successfully for ${user.Email} [${role}]`);
-
-    res.json({
-      success: true,
-      message: 'Password reset successfully. You can now login with your new password.'
+    // Return verification token to allow immediate password reset
+    return res.json({ 
+      success: true, 
+      message: 'Address verified successfully. You can now reset your password.',
+      verificationToken: verificationToken,
+      email: email
     });
   } catch (error) {
-    console.error('❌ Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error resetting password.'
+    console.error('Error in requestPasswordReset:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.resetPasswordVerified = async (req, res) => {
+  try {
+    const { email, verificationToken, newPassword } = req.body || {};
+
+    if (!email || !verificationToken || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, verification token and new password are required.' });
+    }
+
+    // Find user by email
+    const user = await customerService.findByEmail(email);
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid verification token or email.' });
+    }
+
+    // Check stored token and expiry
+    const storedHash = user.resetPasswordToken;
+    const expires = user.resetPasswordExpires ? new Date(user.resetPasswordExpires).getTime() : 0;
+
+    // Hash provided verification token and compare
+    const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+    if (!storedHash || storedHash !== tokenHash || Date.now() > expires) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification token.' });
+    }
+
+    // Validate password length
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update user: set new password, remove token fields
+    await customerService.update(user.ID || user.id || user._id, {
+      Password: passwordHash,
+      resetPasswordToken: null,
+      resetPasswordExpires: null
     });
+
+    console.log(`Password reset successful for ${email} via address verification`);
+
+    return res.json({ success: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    console.error('Error in resetPasswordVerified:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body || {};
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, token and new password are required.' });
+    }
+
+    // Find user by email
+    const user = await customerService.findByEmail(email);
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid token or email.' });
+    }
+
+    // Check stored token and expiry
+    const storedHash = user.resetPasswordToken;
+    const expires = user.resetPasswordExpires ? new Date(user.resetPasswordExpires).getTime() : 0;
+
+    // Hash provided token and compare
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    if (!storedHash || storedHash !== tokenHash || Date.now() > expires) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired token.' });
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update user: set new password, remove token fields
+    await customerService.update(user.ID || user.id || user._id, {
+      Password: passwordHash, // adapt field name if different in your schema
+      resetPasswordToken: null,
+      resetPasswordExpires: null
+    });
+
+    console.log(`Password reset successful for ${email}`);
+
+    return res.json({ success: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    console.error('Error in resetPassword:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

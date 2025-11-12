@@ -15,65 +15,68 @@ const jwt = require('jsonwebtoken');
 
 exports.getDashboardStats = async (req, res) => {
   try {
-    console.log('📊 Fetching dashboard statistics...');
+    console.log('📊 Fetching dashboard stats for user:', req.user.id);
 
-    // Get all data in parallel
-    const [bookings, customers, services, products, orders, payments] = await Promise.all([
+    // Get current admin to check role
+    const currentAdmin = await adminService.findById(req.user.id);
+    const isMainAdmin = currentAdmin.Role === 'main_admin';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Get all necessary data
+    const [allBookings, allCustomers, completedPayments] = await Promise.all([
       bookingService.findAll(),
       customerService.findAll(),
-      serviceService.findAll(),
-      productService.findAll(),
-      orderService.findAll(),
       paymentService.findAll()
     ]);
 
-    // Calculate statistics
+    // Calculate stats with consistent field names
     const stats = {
-      totalBookings: bookings.length,
-      totalCustomers: customers.length,
-      totalServices: services.length,
-      totalProducts: products.length,
-      totalOrders: orders.length,
-      
-      // Booking status breakdown
-      bookingsByStatus: {
-        requested: bookings.filter(b => b.Status === 'requested').length,
-        contacted: bookings.filter(b => b.Status === 'contacted').length,
-        in_progress: bookings.filter(b => b.Status === 'in_progress').length,
-        quoted: bookings.filter(b => b.Status === 'quoted').length,
-        confirmed: bookings.filter(b => b.Status === 'confirmed').length,
-        completed: bookings.filter(b => b.Status === 'completed').length,
-        cancelled: bookings.filter(b => b.Status === 'cancelled').length
-      },
-      
-      // Recent bookings (last 5)
-      recentBookings: bookings
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5),
-      
-      // Revenue calculation
-      totalRevenue: payments
+      // Use field names that match frontend expectations
+      totalRevenue: completedPayments
         .filter(p => p.Status === 'completed' || p.Status === 'confirmed')
         .reduce((sum, p) => sum + (parseFloat(p.Amount) || 0), 0),
-      
-      // Pending revenue (quoted but not paid)
-      pendingRevenue: bookings
-        .filter(b => b.Status === 'quoted' && b.Quoted_Amount)
-        .reduce((sum, b) => sum + (parseFloat(b.Quoted_Amount) || 0), 0)
+
+      totalBookings: allBookings.length,
+
+      totalCustomers: allCustomers.length,
+
+      pendingBookings: allBookings.filter(b =>
+        b.Status === 'requested' || b.Status === 'pending'
+      ).length,
+
+      // Additional data for main admin
+      ...(isMainAdmin && {
+        weeklyRevenue: completedPayments
+          .filter(p => {
+            const paymentDate = new Date(p.createdAt || p.Created_At);
+            return paymentDate >= oneWeekAgo &&
+              (p.Status === 'completed' || p.Status === 'confirmed');
+          })
+          .reduce((sum, p) => sum + (parseFloat(p.Amount) || 0), 0),
+
+        newCustomers: allCustomers.filter(c => {
+          const customerDate = new Date(c.createdAt || c.Created_At);
+          return customerDate >= oneWeekAgo;
+        }).length
+      })
     };
 
     console.log('✅ Dashboard stats calculated:', stats);
 
+    // Return consistent response format
     res.json({
       success: true,
-      stats
+      stats: stats
     });
+
   } catch (error) {
     console.error('❌ Dashboard stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching dashboard statistics',
-      error: error.message
+      message: 'Error fetching dashboard statistics: ' + error.message
     });
   }
 };
@@ -83,7 +86,7 @@ exports.getDashboardStats = async (req, res) => {
 exports.getAllCustomers = async (req, res) => {
   try {
     const customers = await customerService.findAll();
-    
+
     // Remove passwords from response
     const sanitizedCustomers = customers.map(customer => {
       const { Password, ...customerData } = customer;
@@ -205,7 +208,7 @@ exports.deleteCustomer = async (req, res) => {
 exports.getAllServices = async (req, res) => {
   try {
     const services = await serviceService.findAll();
-    
+
     res.json({
       success: true,
       services
@@ -363,7 +366,7 @@ exports.toggleServiceAvailability = async (req, res) => {
 exports.getAllProducts = async (req, res) => {
   try {
     const products = await productService.findAll();
-    
+
     res.json({
       success: true,
       products
@@ -523,13 +526,13 @@ exports.toggleProductAvailability = async (req, res) => {
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await orderService.findAll();
-    
+
     // Populate customer and product data
     const populatedOrders = await Promise.all(
       orders.map(async (order) => {
         const customer = await customerService.findById(order.Customer_ID);
         const product = await productService.findById(order.Product_ID);
-        
+
         return {
           ...order,
           Customer: customer ? {
@@ -721,7 +724,7 @@ exports.uploadGalleryMedia = async (req, res) => {
 exports.getAllGalleryMedia = async (req, res) => {
   try {
     const media = await galleryService.findAll();
-    
+
     res.json({
       success: true,
       media
@@ -776,12 +779,12 @@ exports.deleteGalleryMedia = async (req, res) => {
 exports.getAllPayments = async (req, res) => {
   try {
     const payments = await paymentService.findAll();
-    
+
     // Populate booking data
     const populatedPayments = await Promise.all(
       payments.map(async (payment) => {
         const booking = await bookingService.findById(payment.Booking_ID);
-        
+
         return {
           ...payment,
           Booking: booking || null
@@ -815,14 +818,14 @@ exports.checkAdminPermissions = async (req, res, next) => {
 exports.firstLoginSetup = async (req, res) => {
   try {
     const { Email, TemporaryPassword, NewPassword } = req.body;
-    
+
     if (!Email || !TemporaryPassword || !NewPassword) {
       return res.status(400).json({
         success: false,
         message: 'Email, temporary password and new password are required.'
       });
     }
-    
+
     // Find admin by email including password
     const admin = await adminService.findByEmailWithPassword(Email.toLowerCase().trim());
     if (!admin) {
@@ -831,21 +834,21 @@ exports.firstLoginSetup = async (req, res) => {
         message: 'Admin not found.'
       });
     }
-    
+
     if (!admin.First_Login) {
       return res.status(400).json({
         success: false,
         message: 'First login already completed.'
       });
     }
-    
+
     if (!admin.Password) {
       return res.status(400).json({
         success: false,
         message: 'Account not properly set up. Please contact administrator.'
       });
     }
-    
+
     // Verify provided temporary password against stored hash
     const bcrypt = require('bcryptjs');
     const isTempValid = await bcrypt.compare(TemporaryPassword, admin.Password);
@@ -855,10 +858,10 @@ exports.firstLoginSetup = async (req, res) => {
         message: 'Invalid temporary password.'
       });
     }
-    
+
     // Update password and clear First_Login
     await adminService.update(admin.ID, { Password: NewPassword, First_Login: false, Last_Login: new Date().toISOString() });
-    
+
     // Generate token
     const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key';
@@ -871,7 +874,7 @@ exports.firstLoginSetup = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '8h' }
     );
-    
+
     const userData = {
       ID: admin.ID,
       Name: admin.Name || admin.Full_Name,
@@ -880,7 +883,7 @@ exports.firstLoginSetup = async (req, res) => {
       Role: admin.Role || 'admin',
       First_Login: false
     };
-    
+
     return res.json({
       success: true,
       message: 'Password set successfully.',
@@ -888,7 +891,7 @@ exports.firstLoginSetup = async (req, res) => {
       role: 'admin',
       user: userData
     });
-    
+
   } catch (error) {
     console.error('First login setup error:', error);
     res.status(500).json({
@@ -908,7 +911,7 @@ exports.checkPasswordStatus = async (req, res) => {
         message: 'Unauthorized'
       });
     }
-    
+
     const admin = await adminService.findById(adminId);
     if (!admin) {
       return res.status(404).json({
@@ -916,7 +919,7 @@ exports.checkPasswordStatus = async (req, res) => {
         message: 'Admin not found'
       });
     }
-    
+
     return res.json({
       success: true,
       requiresReset: !!admin.First_Login
@@ -1128,22 +1131,50 @@ exports.getAllBookingsForAdmin = async (req, res) => {
 
 exports.getBookingStats = async (req, res) => {
   try {
-    const bookings = await bookingService.findAll();
+    const [bookings, customers, services, products, orders, payments] = await Promise.all([
+      bookingService.findAll(),
+      customerService.findAll(),
+      serviceService.findAll(),
+      productService.findAll(),
+      orderService.findAll(),
+      paymentService.findAll()
+    ]);
+
     const stats = {
-      total: bookings.length,
-      byStatus: {
-        requested: bookings.filter(b => b.Status === 'requested').length,
-        contacted: bookings.filter(b => b.Status === 'contacted').length,
-        in_progress: bookings.filter(b => b.Status === 'in_progress').length,
-        quoted: bookings.filter(b => b.Status === 'quoted').length,
-        confirmed: bookings.filter(b => b.Status === 'confirmed').length,
-        completed: bookings.filter(b => b.Status === 'completed').length,
-        cancelled: bookings.filter(b => b.Status === 'cancelled').length
-      }
+      totalRevenue: payments
+        .filter(p => p && (p.Status === 'completed' || p.Status === 'paid' || p.Status === 'confirmed'))
+        .reduce((sum, p) => sum + (parseFloat(p.Amount) || 0), 0),
+
+      totalBookings: bookings.length,
+      totalCustomers: customers.length,
+
+      pendingBookings: bookings.filter(b =>
+        ['requested', 'pending'].includes(b.Status)
+      ).length,
+
+      todayBookings: bookings.filter(b => {
+        try {
+          const bookingDate = new Date(b.Date || b.createdAt || b.created_at);
+          const today = new Date();
+          return bookingDate.toDateString() === today.toDateString();
+        } catch (e) {
+          return false;
+        }
+      }).length
     };
-    res.json({ success: true, stats });
+
+    // Return consistent format with getDashboardStats
+    res.json({
+      success: true,
+      stats: stats // Keep as number, frontend will format
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ Booking stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching booking statistics'
+    });
   }
 };
 

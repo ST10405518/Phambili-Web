@@ -2,7 +2,7 @@
 class AdminAPIService {
     constructor() {
         this.baseURL = 'http://localhost:5001/api';
-        
+
         // Enhanced rate limiting properties
         this.rateLimitState = {
             remaining: 10,
@@ -11,21 +11,21 @@ class AdminAPIService {
             windowMs: 60000,
             lastRequest: 0
         };
-        
+
         // Queue management
         this.requestQueue = [];
         this.activeRequests = 0;
         this.maxConcurrent = 2;
         this.minRequestInterval = 1000; // 1 second between requests
         this.isPaused = false;
-        
+
         // Retry configuration
         this.retryConfig = {
             maxRetries: 3,
             baseDelay: 1000,
             maxDelay: 30000
         };
-        
+
         // Cache for fallback data
         this.cache = new Map();
         this.cacheTimeout = 30000;
@@ -51,16 +51,16 @@ class AdminAPIService {
         try {
             // Parse various rate limit header formats
             const rateLimitHeaders = {
-                remaining: headers['x-ratelimit-remaining'] || 
-                           headers['ratelimit-remaining'] ||
-                           headers['x-rate-limit-remaining'],
+                remaining: headers['x-ratelimit-remaining'] ||
+                    headers['ratelimit-remaining'] ||
+                    headers['x-rate-limit-remaining'],
                 limit: headers['x-ratelimit-limit'] ||
-                       headers['ratelimit-limit'] ||
-                       headers['x-rate-limit-limit'],
+                    headers['ratelimit-limit'] ||
+                    headers['x-rate-limit-limit'],
                 reset: headers['x-ratelimit-reset'] ||
-                       headers['ratelimit-reset'] ||
-                       headers['x-rate-limit-reset'] ||
-                       headers['retry-after']
+                    headers['ratelimit-reset'] ||
+                    headers['x-rate-limit-reset'] ||
+                    headers['retry-after']
             };
 
             if (rateLimitHeaders.remaining !== undefined) {
@@ -82,7 +82,7 @@ class AdminAPIService {
             }
 
             console.log(`📊 Rate Limit: ${this.rateLimitState.remaining}/${this.rateLimitState.limit}, Resets: ${new Date(this.rateLimitState.resetTime).toLocaleTimeString()}`);
-            
+
         } catch (error) {
             console.warn('Failed to parse rate limit headers:', error);
         }
@@ -94,25 +94,25 @@ class AdminAPIService {
             if (retryAfter) {
                 return parseInt(retryAfter) * 1000; // Use server-suggested delay
             }
-            
+
             // Exponential backoff with jitter
             const exponentialDelay = this.retryConfig.baseDelay * Math.pow(2, retryCount);
             const jitter = Math.random() * 1000;
             return Math.min(exponentialDelay + jitter, this.retryConfig.maxDelay);
         }
-        
+
         // For other errors, use exponential backoff
         return this.retryConfig.baseDelay * Math.pow(2, retryCount);
     }
 
     shouldThrottle() {
         const now = Date.now();
-        
+
         // Check if we've exceeded rate limit
         if (this.rateLimitState.remaining <= 0) {
             if (now < this.rateLimitState.resetTime) {
                 const waitTime = this.rateLimitState.resetTime - now;
-                console.log(`⏳ Rate limit exceeded. Waiting ${Math.round(waitTime/1000)}s`);
+                console.log(`⏳ Rate limit exceeded. Waiting ${Math.round(waitTime / 1000)}s`);
                 return waitTime;
             } else {
                 // Reset period passed, reset counter
@@ -120,13 +120,13 @@ class AdminAPIService {
                 this.rateLimitState.resetTime = now + this.rateLimitState.windowMs;
             }
         }
-        
+
         // Enforce minimum interval between requests
         const timeSinceLast = now - this.rateLimitState.lastRequest;
         if (timeSinceLast < this.minRequestInterval) {
             return this.minRequestInterval - timeSinceLast;
         }
-        
+
         return 0;
     }
 
@@ -159,8 +159,8 @@ class AdminAPIService {
     }
 
     async processQueue() {
-        if (this.isPaused || 
-            this.activeRequests >= this.maxConcurrent || 
+        if (this.isPaused ||
+            this.activeRequests >= this.maxConcurrent ||
             this.requestQueue.length === 0) {
             return;
         }
@@ -191,30 +191,30 @@ class AdminAPIService {
         try {
             console.log(`🔄 Processing request: ${request.requestId}`);
             const result = await request.requestFn();
-            
+
             // Cache successful responses
             if (request.requestId) {
                 this.setCache(request.requestId, result);
             }
-            
+
             request.resolve(result);
         } catch (error) {
             if (error.response?.status === 429 && request.retries < this.retryConfig.maxRetries) {
                 // Re-queue with backoff
                 request.retries++;
                 const retryDelay = this.calculateRetryDelay(error, request.retries);
-                
-                console.log(`🔄 Rate limited. Requeuing in ${Math.round(retryDelay/1000)}s (Attempt ${request.retries})`);
-                
+
+                console.log(`🔄 Rate limited. Requeuing in ${Math.round(retryDelay / 1000)}s (Attempt ${request.retries})`);
+
                 setTimeout(() => {
                     this.requestQueue.unshift(request);
                     this.activeRequests--;
                     this.processQueue();
                 }, retryDelay);
-                
+
                 return;
             }
-            
+
             request.reject(error);
         } finally {
             if (!this.isPaused) {
@@ -275,7 +275,7 @@ class AdminAPIService {
     async makeRequest(method, endpoint, data = null, retry = true, useCache = false, isAdminRoute = true) {
         const fullEndpoint = isAdminRoute ? `/admin${endpoint}` : endpoint;
         const requestId = `${method}:${fullEndpoint}:${data ? JSON.stringify(data) : ''}`;
-        
+
         const requestFn = async () => {
             return this.executeRequest(method, fullEndpoint, data, retry);
         };
@@ -688,24 +688,24 @@ class EnhancedAdminDashboard {
             this.retryAttempts = 0;
             this.renderBookings(bookingsData.bookings);
             return bookingsData;
-            
+
         } catch (error) {
             console.error('❌ Failed to load bookings:', error);
-            
+
             if (error.response?.status === 429) {
                 this.handleRateLimitError(error);
             }
-            
+
             // Use mock data as fallback
             const mockBookings = this.api.getMockBookings(limit);
             this.renderBookings(mockBookings.bookings);
-            
+
             // Show user-friendly message
             this.showNotification(
-                'Using demo data. Real data will load when rate limit resets.', 
+                'Using demo data. Real data will load when rate limit resets.',
                 'warning'
             );
-            
+
             return mockBookings;
         }
     }
@@ -713,19 +713,19 @@ class EnhancedAdminDashboard {
     handleRateLimitError(error) {
         const retryAfter = error.response?.headers['retry-after'];
         let resetTime = 'soon';
-        
+
         if (retryAfter) {
             const resetDate = new Date(Date.now() + (parseInt(retryAfter) * 1000));
             resetTime = resetDate.toLocaleTimeString();
         }
-        
+
         console.warn(`⏳ Rate limit exceeded. Resets at ${resetTime}`);
-        
+
         // Implement exponential backoff for dashboard
         if (this.retryAttempts < this.maxRetryAttempts) {
             this.retryAttempts++;
             const backoffDelay = Math.min(1000 * Math.pow(2, this.retryAttempts), 30000);
-            
+
             setTimeout(() => {
                 this.loadRecentBookings();
             }, backoffDelay);
@@ -734,7 +734,7 @@ class EnhancedAdminDashboard {
 
     renderBookings(bookings) {
         console.log('📊 Rendering bookings:', bookings);
-        
+
         // Update UI with bookings data
         const container = document.getElementById('recent-bookings-container');
         if (container) {
@@ -751,7 +751,7 @@ class EnhancedAdminDashboard {
 
     showNotification(message, type = 'info') {
         console.log(`📢 ${type.toUpperCase()}: ${message}`);
-        
+
         // Example: Show toast notification
         if (window.showToast) {
             window.showToast(message, type);
@@ -764,7 +764,7 @@ class EnhancedAdminDashboard {
             try {
                 const status = this.api.getQueueStatus();
                 console.log('🔍 API Status:', status);
-                
+
                 // If we have rate limit remaining, try to fetch fresh data
                 if (status.rateLimit.remaining > 3 && !this.api.isPaused) {
                     await this.loadRecentBookings();
@@ -777,11 +777,11 @@ class EnhancedAdminDashboard {
 }
 
 // Initialize enhanced dashboard
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     window.enhancedDashboard = new EnhancedAdminDashboard();
     window.enhancedDashboard.loadRecentBookings();
     window.enhancedDashboard.startHealthCheck();
-    
+
     // Export API for debugging
     window.apiDebug = {
         getStatus: () => window.enhancedDashboard.api.getQueueStatus(),
@@ -790,7 +790,10 @@ document.addEventListener('DOMContentLoaded', function() {
         clearQueue: () => window.enhancedDashboard.api.clearQueue(),
         getMetrics: () => window.enhancedDashboard.api.getMetrics()
     };
-     checkResetToken();
+    // If you need token checking, use your existing auth manager
+    if (window.authManager && typeof window.authManager.checkToken === 'function') {
+        window.authManager.checkToken();
+    }
 });
 
 // Initialize API service

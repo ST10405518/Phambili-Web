@@ -418,50 +418,50 @@ class AdminDashboard {
 
   async loadDashboardStats() {
     try {
-      this.showLoading('Loading dashboard statistics...');
+      this.showLoading && this.showLoading('Loading dashboard statistics...');
 
-      let stats;
+      let response;
+
+      // Try to get stats from the correct endpoint
       try {
-        console.log('📊 Fetching dashboard stats from API...');
-        stats = await this.api.getDashboardStats();
-        console.log('✅ Dashboard stats received:', stats);
-      } catch (error) {
-        console.warn('⚠️ Using mock dashboard stats due to API error:', error.message);
-
-        // More detailed error logging
-        if (error.response) {
-          console.error('📊 Backend Error Details:', {
-            status: error.response.status,
-            data: error.response.data
-          });
-        } else if (error.request) {
-          console.error('🌐 Network Error: No response received from server');
-        } else {
-          console.error('🔧 Setup Error:', error.message);
+        // Use the booking stats endpoint which seems to have the data
+        response = await this.api.getBookingStats();
+        console.log('📊 Raw stats response:', response);
+      } catch (apiError) {
+        console.warn('⚠️ Booking stats API failed, trying dashboard stats:', apiError);
+        try {
+          response = await this.api.getDashboardStats();
+        } catch (dashboardError) {
+          console.warn('⚠️ All stats APIs failed, using fallback:', dashboardError);
+          response = { stats: this.getFallbackStats() };
         }
-
-        // Fallback to mock data
-        stats = this.getFallbackStats();
       }
 
-      // Validate stats before updating UI
-      if (!stats || typeof stats !== 'object') {
-        console.warn('⚠️ Invalid stats received, using fallback data');
-        stats = this.getFallbackStats();
+      // Normalize the response structure
+      let normalizedStats;
+
+      if (response.stats) {
+        // Response has nested stats object
+        normalizedStats = response.stats;
+      } else if (response.success && response.data) {
+        // Response has data object
+        normalizedStats = response.data;
+      } else {
+        // Response is already flat
+        normalizedStats = response;
       }
 
-      this.updateStatsCards(stats);
+      console.log('✅ Normalized stats:', normalizedStats);
+      this.updateStatsCards(normalizedStats);
 
     } catch (error) {
-      console.error('❌ Critical error in loadDashboardStats:', error);
-      this.showNotification('Failed to load dashboard statistics', 'error');
-      // Ensure UI still gets some data
+      console.error('❌ Error loading dashboard stats:', error);
+      this.showNotification && this.showNotification('Failed to load dashboard statistics', 'error');
       this.updateStatsCards(this.getFallbackStats());
     } finally {
-      this.hideLoading();
+      this.hideLoading && this.hideLoading();
     }
   }
-
   // In admin-dashboard.js - Update getFallbackStats
   getFallbackStats() {
     return {
@@ -476,34 +476,71 @@ class AdminDashboard {
     try {
       console.log('📊 Updating stats cards with data:', stats);
 
+      // Normalize response - handle both nested and flat structures
+      let normalizedStats = stats;
+
+      if (stats && stats.stats) {
+        // Response from getDashboardStats or fixed getBookingStats
+        normalizedStats = stats.stats;
+      } else if (stats && stats.success && stats.data) {
+        // Alternative response format
+        normalizedStats = stats.data;
+      }
+
+      console.log('🔄 Normalized stats for display:', normalizedStats);
+
       const revenueEl = document.getElementById('totalRevenue');
       const bookingsEl = document.getElementById('totalBookings');
       const customersEl = document.getElementById('totalCustomers');
       const pendingEl = document.getElementById('pendingBookings');
 
-      // Safely convert values to numbers before using toFixed
+      // Extract values with fallbacks
+      const totalRevenue = parseFloat(normalizedStats?.totalRevenue || normalizedStats?.revenue || 0);
+      const totalBookings = parseInt(normalizedStats?.totalBookings || normalizedStats?.total || 0);
+      const totalCustomers = parseInt(normalizedStats?.totalCustomers || normalizedStats?.customers || 0);
+      const pendingBookings = parseInt(normalizedStats?.pendingBookings || normalizedStats?.pending || 0);
+
+      // Update DOM elements
       if (revenueEl) {
-        const revenueValue = parseFloat(stats.totalRevenue) || 0;
-        revenueEl.textContent = `R ${revenueValue.toFixed(2)}`;
+        revenueEl.textContent = `R ${totalRevenue.toFixed(2)}`;
       }
 
       if (bookingsEl) {
-        bookingsEl.textContent = parseInt(stats.todayBookings) || 0;
+        bookingsEl.textContent = totalBookings;
       }
 
       if (customersEl) {
-        customersEl.textContent = parseInt(stats.newCustomers) || 0;
+        customersEl.textContent = totalCustomers;
       }
 
       if (pendingEl) {
-        pendingEl.textContent = parseInt(stats.pendingBookings) || 0;
+        pendingEl.textContent = pendingBookings;
       }
 
-      console.log('✅ Stats cards updated successfully');
+      console.log('✅ Stats cards updated:', {
+        totalRevenue,
+        totalBookings,
+        totalCustomers,
+        pendingBookings
+      });
+
     } catch (error) {
-      console.error('❌ Error updating stats cards:', error);
-      console.error('📊 Stats data that caused error:', stats);
+      console.error('❌ Error updating stats cards:', error, stats);
+      this.setFallbackStats();
     }
+  }
+
+  // Add fallback method
+  setFallbackStats() {
+    const revenueEl = document.getElementById('totalRevenue');
+    const bookingsEl = document.getElementById('totalBookings');
+    const customersEl = document.getElementById('totalCustomers');
+    const pendingEl = document.getElementById('pendingBookings');
+
+    if (revenueEl) revenueEl.textContent = 'R 0.00';
+    if (bookingsEl) bookingsEl.textContent = '0';
+    if (customersEl) customersEl.textContent = '0';
+    if (pendingEl) pendingEl.textContent = '0';
   }
   async loadRecentBookings() {
     try {
@@ -2866,10 +2903,10 @@ class AdminDashboard {
       'cancelled': 'Cancelled',
       'declined': 'Declined'
     };
-    
+
     // Handle undefined or null status
     if (!status) return 'Unknown';
-    
+
     return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
   }
 

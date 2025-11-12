@@ -14,17 +14,20 @@ class RateLimitManager {
     const now = Date.now();
     const windowStart = now - this.windowMs;
 
-    // Clean old entries
-    for (const [timestamp] of this.requests) {
+    // Clean old entries - FIXED: proper iteration
+    for (const [timestamp, request] of this.requests) {
       if (timestamp < windowStart) {
         this.requests.delete(timestamp);
       }
     }
 
     // Count requests in current window
-    const currentRequests = Array.from(this.requests.values())
-      .filter(req => req.key === key && req.timestamp > windowStart)
-      .length;
+    let currentRequests = 0;
+    for (const [timestamp, request] of this.requests) {
+      if (request.key === key && timestamp > windowStart) {
+        currentRequests++;
+      }
+    }
 
     if (currentRequests >= this.maxRequests) {
       return {
@@ -346,7 +349,7 @@ class BeautifulLoader {
             <div class="bubble bubble-4"></div>
           </div>
           <div class="loader-text">
-            <span class="loader-message">Cleaning things up...</span>
+            <span class="loader-message">Loading...</span>
             <div class="loader-dots">
               <span></span>
               <span></span>
@@ -356,19 +359,30 @@ class BeautifulLoader {
         </div>
       </div>
     `;
+    this.styleId = 'beautiful-loader-styles';
     this.init();
   }
 
   init() {
-    if (!document.getElementById('global-loader')) {
-      document.body.insertAdjacentHTML('beforeend', this.loaderHTML);
+    try {
+      if (!document.getElementById('global-loader')) {
+        document.body.insertAdjacentHTML('beforeend', this.loaderHTML);
+      }
+
+      if (!document.getElementById(this.styleId)) {
+        this.addStyles();
+      }
+    } catch (error) {
+      console.error('BeautifulLoader initialization failed:', error);
     }
-    this.addStyles();
   }
 
   addStyles() {
+    const styleId = this.styleId;
+    if (document.getElementById(styleId)) return;
+
     const styles = `
-      .beautiful-loader {
+      #${styleId} {
         position: fixed;
         top: 0;
         left: 0;
@@ -580,64 +594,433 @@ class BeautifulLoader {
         to { opacity: 1; transform: translateY(0); }
       }
 
-      /* Forgot Password Modal Styles */
-      .forgot-password-modal {
-        max-width: 450px;
-        width: 90%;
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
       }
 
-      .forgot-password-modal .modal-header {
-        text-align: center;
-        margin-bottom: 20px;
-      }
+     .enhanced-modal {
+  min-width: 900px;
+  width: 95%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  position: relative;
+}
 
-      .forgot-password-modal .modal-header h2 {
-        color: #2c3e50;
-        margin-bottom: 10px;
-        font-size: 1.5rem;
-      }
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
 
-      .forgot-password-modal .modal-header p {
-        color: #7f8c8d;
-        font-size: 14px;
-        line-height: 1.4;
-      }
+.modal-container {
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  margin: 2px;
+  border-radius: 13px;
+  overflow: hidden;
+}
 
-      .auth-footer-links {
-        text-align: center;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #ecf0f1;
-      }
+.enhanced-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+}
 
-      .auth-footer-links a {
-        color: #3498db;
-        text-decoration: none;
-        font-weight: 500;
-      }
+.enhanced-close:hover {
+  background: #ff6b6b;
+  color: white;
+  transform: rotate(90deg);
+}
 
-      .auth-footer-links a:hover {
-        text-decoration: underline;
-      }
+.enhanced-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 20px 10px;
+  text-align: center;
+  position: relative;
+}
 
-      .password-security-hint {
-        font-size: 12px;
-        color: #7f8c8d;
-        margin-top: 5px;
-      }
+.header-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+  font-size: 16px;
+  backdrop-filter: blur(10px);
+}
 
-      .rate-limit-message {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        color: #856404;
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        font-size: 14px;
-      }
-    `;
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  opacity: 0.9;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.enhanced-body {
+  padding: 15px;
+}
+
+/* Progress Indicator */
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  padding: 0 20px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+}
+
+.step.completed {
+  opacity: 1;
+}
+
+.step-number {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e9ecef;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 11px;
+  margin-bottom: 4px;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.step.completed .step-number {
+  background: #28a745;
+  color: white;
+}
+
+.step.completed .step-number::before {
+  content: "✓";
+  font-weight: bold;
+}
+
+.step-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #6c757d;
+  text-align: center;
+}
+
+.step.active .step-label {
+  color: #495057;
+  font-weight: 600;
+}
+
+.step-connector {
+  width: 50px;
+  height: 1px;
+  background: #e9ecef;
+  margin: 0 15px;
+  margin-bottom: 15px;
+}
+
+/* Enhanced Messages */
+.message {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.success-message {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border: 1px solid #b8dacc;
+  color: #155724;
+}
+
+.error-message {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border: 1px solid #f1aeb5;
+  color: #721c24;
+}
+
+.message-icon {
+  margin-right: 6px;
+  font-size: 12px;
+  margin-top: 0;
+}
+
+.message-content {
+  flex: 1;
+}
+
+/* Enhanced Forms */
+.enhanced-form {
+  animation: slideIn 0.3s ease;
+}
+
+.form-section {
+  margin-bottom: 12px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.section-title i {
+  margin-right: 6px;
+  color: #667eea;
+  font-size: 11px;
+}
+
+.enhanced-group {
+  margin-bottom: 10px;
+}
+
+.enhanced-label {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+
+.enhanced-label i {
+  margin-right: 5px;
+  color: #6c757d;
+  width: 12px;
+  font-size: 15px;
+}
+
+.enhanced-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+}
+
+.enhanced-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.enhanced-input::placeholder {
+  color: #adb5bd;
+  font-size: 15px;
+}
+
+.address-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.input-hint {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+.input-hint i {
+  margin-right: 3px;
+  color: #17a2b8;
+  font-size: 10px;
+}
+
+/* Enhanced Actions */
+.enhanced-actions {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.enhanced-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  min-width: 180px;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+}
+
+.enhanced-btn i {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.enhanced-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+/* Modal Footer */
+.modal-footer {
+  text-align: center;
+  padding-top: 10px;
+  margin-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.footer-text {
+  font-size: 15px;
+  color: #6c757d;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-text i {
+  margin-right: 5px;
+  color: #adb5bd;
+  font-size: 10px;
+}
+
+.footer-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 2px;
+  transition: color 0.3s ease;
+  font-size: 15px;
+}
+
+.footer-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .enhanced-modal {
+    min-width: auto;
+    max-width: 95%;
+    margin: 5px;
+  }
+
+  .enhanced-header {
+    padding: 12px 15px 8px;
+  }
+
+  .enhanced-body {
+    padding: 12px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-indicator {
+    padding: 0 8px;
+  }
+
+  .step-connector {
+    width: 25px;
+    margin: 0 6px;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} `;
 
     const styleSheet = document.createElement('style');
+    styleSheet.id = this.styleId;
     styleSheet.textContent = styles;
     document.head.appendChild(styleSheet);
   }
@@ -680,187 +1063,19 @@ window.apiClient = new EnhancedAPIClient();
 // ========== GLOBAL VARIABLES ==========
 let cartItems = [];
 
-// ========== FORGOT PASSWORD FUNCTIONALITY ==========
-
-// ========== PASSWORD RESET TOKEN HANDLING ==========
-
-// Check for reset token when page loads
+// ========== PASSWORD RESET TOKEN CHECK ==========
 function checkResetToken() {
   const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
-  const showReset = urlParams.get('showReset');
-  
-  if (token && showReset === 'true') {
-    // Open reset password modal with the token
-    openResetPasswordModal(token);
-    
-    // Clean the URL (remove parameters from address bar)
-    window.history.replaceState({}, '', window.location.pathname);
-  }
-}
+  const resetToken = urlParams.get('resetToken');
 
-// Open reset password modal with token
-function openResetPasswordModal(token) {
-  // Close any open modals first
-  removeForgotPasswordModal();
-  
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay reset-password-overlay';
-  modal.innerHTML = `
-    <div class="modal reset-password-modal">
-      <button class="modal-close" onclick="closeResetPasswordModal()">
-        <i class="fas fa-times"></i>
-      </button>
-      
-      <div class="modal-header">
-        <h2><i class="fas fa-lock"></i> Set New Password</h2>
-        <p>Enter your new password below.</p>
-      </div>
-      
-      <div class="modal-body">
-        <div id="reset-password-success" class="auth-success" style="display: none">
-          <i class="fas fa-check-circle"></i>
-          <span id="reset-password-success-text"></span>
-        </div>
-        
-        <div id="reset-password-error" class="auth-error-message" style="display: none">
-          <i class="fas fa-exclamation-circle"></i>
-          <span id="reset-password-error-text"></span>
-        </div>
-        
-        <form id="reset-password-form">
-          <input type="hidden" id="reset-token" value="${token}" />
-          
-          <div class="auth-form-group">
-            <label for="new-password" class="auth-label">New Password</label>
-            <input type="password" id="new-password" class="auth-input" 
-                   placeholder="Enter new password" required minlength="6" />
-          </div>
-          
-          <div class="auth-form-group">
-            <label for="confirm-password" class="auth-label">Confirm Password</label>
-            <input type="password" id="confirm-password" class="auth-input" 
-                   placeholder="Confirm new password" required minlength="6" />
-          </div>
-          
-          <div class="form-actions">
-            <button type="submit" class="auth-btn">
-              <i class="fas fa-save"></i> Reset Password
-            </button>
-          </div>
-        </form>
-        
-        <div class="auth-footer-links">
-          <p>Remember your password? <a href="#" onclick="closeResetPasswordModal(); switchToLogin();">Back to Login</a></p>
-        </div>
-      </div>
-    </div>
-  `;
+  if (resetToken) {
+    // Store token for reset password page
+    localStorage.setItem('resetToken', resetToken);
 
-  document.body.appendChild(modal);
-  document.body.classList.add('modal-open');
-
-  // Setup form handler
-  const form = document.getElementById('reset-password-form');
-  form.addEventListener('submit', handleResetPasswordSubmit);
-}
-
-function closeResetPasswordModal() {
-  const overlay = document.querySelector('.modal-overlay.reset-password-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-  document.body.classList.remove('modal-open');
-}
-
-// Handle reset password submission
-async function handleResetPasswordSubmit(e) {
-  e.preventDefault();
-  
-  const token = document.getElementById('reset-token').value;
-  const newPassword = document.getElementById('new-password').value;
-  const confirmPassword = document.getElementById('confirm-password').value;
-  
-  const submitBtn = this.querySelector('button[type="submit"]');
-  const originalText = submitBtn.innerHTML;
-
-  // Hide previous messages
-  const successEl = document.getElementById('reset-password-success');
-  const errorEl = document.getElementById('reset-password-error');
-  if (successEl) successEl.style.display = 'none';
-  if (errorEl) errorEl.style.display = 'none';
-
-  // Validation
-  if (newPassword !== confirmPassword) {
-    showResetPasswordError('Passwords do not match.');
-    return;
-  }
-
-  if (newPassword.length < 6) {
-    showResetPasswordError('Password must be at least 6 characters long.');
-    return;
-  }
-
-  try {
-    // Show loading state
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
-
-    if (window.beautifulLoader) {
-      window.beautifulLoader.show('Resetting your password...');
+    // If we're not on the reset password page, redirect to it
+    if (!window.location.pathname.includes('reset-password.html')) {
+      window.location.href = 'reset-password.html?token=' + resetToken;
     }
-
-    const response = await window.apiClient.post('/auth/reset-password', {
-      token: token,
-      newPassword: newPassword
-    });
-
-    if (window.beautifulLoader) {
-      window.beautifulLoader.hide();
-    }
-
-    if (response.success) {
-      showResetPasswordSuccess('Password reset successfully! You can now login with your new password.');
-      
-      // Clear form
-      document.getElementById('reset-password-form').reset();
-      
-      // Auto-close after 2 seconds
-      setTimeout(() => {
-        closeResetPasswordModal();
-      }, 2000);
-    }
-
-  } catch (error) {
-    if (window.beautifulLoader) {
-      window.beautifulLoader.hide();
-    }
-    
-    const errorMessage = error.response?.data?.message ||
-      'Failed to reset password. The link may have expired.';
-    showResetPasswordError(errorMessage);
-
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = originalText;
-  }
-}
-
-function showResetPasswordError(message) {
-  const errorEl = document.getElementById('reset-password-error');
-  const errorText = document.getElementById('reset-password-error-text');
-  if (errorEl && errorText) {
-    errorText.textContent = message;
-    errorEl.style.display = 'block';
-  }
-}
-
-function showResetPasswordSuccess(message) {
-  const successEl = document.getElementById('reset-password-success');
-  const successText = document.getElementById('reset-password-success-text');
-  if (successEl && successText) {
-    successText.textContent = message;
-    successEl.style.display = 'block';
   }
 }
 
@@ -873,43 +1088,168 @@ function showForgotPasswordModal() {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay forgot-password-overlay';
   modal.innerHTML = `
-    <div class="modal forgot-password-modal">
-      <button class="modal-close" onclick="closeForgotPasswordModal()">
-        <i class="fas fa-times"></i>
-      </button>
-      
-      <div class="modal-header">
-        <h2><i class="fas fa-key"></i> Reset Your Password</h2>
-        <p>Enter your email address and we'll send you a link to reset your password.</p>
-      </div>
-      
-      <div class="modal-body">
-        <div id="forgot-password-success" class="auth-success" style="display: none">
-          <i class="fas fa-check-circle"></i>
-          <span id="forgot-password-success-text"></span>
+    <div class="modal forgot-password-modal enhanced-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-container">
+        
+        
+        <div class="modal-header enhanced-header">
+          <div class="header-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h2 id="forgot-modal-title" class="modal-title">Reset Your Password</h2>
+          <p id="forgot-modal-description" class="modal-subtitle">Enter your email and full address to verify your identity.</p>
         </div>
         
-        <div id="forgot-password-error" class="auth-error-message" style="display: none">
-          <i class="fas fa-exclamation-circle"></i>
-          <span id="forgot-password-error-text"></span>
-        </div>
-        
-        <form id="forgot-password-form">
-          <div class="auth-form-group">
-            <label for="forgot-password-email" class="auth-label">Email Address</label>
-            <input type="email" id="forgot-password-email" class="auth-input" 
-                   placeholder="your@email.com" required />
+        <div class="modal-body enhanced-body">
+          <!-- Progress Indicator -->
+          <div class="progress-indicator">
+            <div class="step active" id="step-1">
+              <div class="step-number">1</div>
+              <span class="step-label">Verify Identity</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step" id="step-2">
+              <div class="step-number">2</div>
+              <span class="step-label">Reset Password</span>
+            </div>
+          </div>
+
+          <!-- Messages -->
+          <div id="forgot-password-success" class="message success-message" style="display: none">
+            <div class="message-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="message-content">
+              <span id="forgot-password-success-text"></span>
+            </div>
           </div>
           
-          <div class="form-actions">
-            <button type="submit" class="auth-btn">
-              <i class="fas fa-paper-plane"></i> Send Reset Link
-            </button>
+          <div id="forgot-password-error" class="message error-message" style="display: none">
+            <div class="message-icon">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="message-content">
+              <span id="forgot-password-error-text"></span>
+            </div>
           </div>
-        </form>
-        
-        <div class="auth-footer-links">
-          <p>Remember your password? <a href="#" onclick="switchToLogin()">Back to Login</a></p>
+          
+          <!-- Step 1: Address Verification Form -->
+          <form id="forgot-password-form" class="enhanced-form" style="display: block;">
+            <div class="form-section">
+              <h3 class="section-title">
+                <i class="fas fa-envelope"></i>
+                Contact Information
+              </h3>
+              <div class="form-group enhanced-group">
+                <label for="forgot-password-email" class="enhanced-label">
+                  <i class="fas fa-envelope"></i>
+                  Email Address
+                </label>
+                <input type="email" id="forgot-password-email" class="enhanced-input" 
+                       placeholder="your@email.com" required />
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3 class="section-title">
+                <i class="fas fa-map-marker-alt"></i>
+                Address Verification
+              </h3>
+              <div class="address-grid">
+                <div class="form-group enhanced-group">
+                  <label for="forgot-password-street" class="enhanced-label">
+                    <i class="fas fa-road"></i>
+                    Street Address
+                  </label>
+                  <input type="text" id="forgot-password-street" class="enhanced-input" 
+                         placeholder="123 Main Street" required />
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group enhanced-group">
+                    <label for="forgot-password-city" class="enhanced-label">
+                      <i class="fas fa-city"></i>
+                      City
+                    </label>
+                    <input type="text" id="forgot-password-city" class="enhanced-input" 
+                           placeholder="City" required />
+                  </div>
+                  <div class="form-group enhanced-group">
+                    <label for="forgot-password-state" class="enhanced-label">
+                      <i class="fas fa-map"></i>
+                      State/Province
+                    </label>
+                    <input type="text" id="forgot-password-state" class="enhanced-input" 
+                           placeholder="State" required />
+                  </div>
+                </div>
+                
+                <div class="form-group enhanced-group">
+                  <label for="forgot-password-postal" class="enhanced-label">
+                    <i class="fas fa-mail-bulk"></i>
+                    Postal Code
+                  </label>
+                  <input type="text" id="forgot-password-postal" class="enhanced-input" 
+                         placeholder="12345" required />
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-actions enhanced-actions">
+              <button type="submit" class="enhanced-btn primary-btn">
+                <i class="fas fa-shield-alt"></i>
+                <span>Verify My Identity</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Step 2: Password Reset Form (hidden initially) -->
+          <form id="reset-password-form" class="enhanced-form" style="display: none;">
+            <div class="form-section">
+              <h3 class="section-title">
+                <i class="fas fa-key"></i>
+                Create New Password
+              </h3>
+              
+              <div class="form-group enhanced-group">
+                <label for="new-password" class="enhanced-label">
+                  <i class="fas fa-lock"></i>
+                  New Password
+                </label>
+                <input type="password" id="new-password" class="enhanced-input" 
+                       placeholder="Enter your new password" required minlength="6" />
+                <div class="input-hint">
+                  <i class="fas fa-info-circle"></i>
+                  Password must be at least 6 characters long
+                </div>
+              </div>
+              
+              <div class="form-group enhanced-group">
+                <label for="confirm-password" class="enhanced-label">
+                  <i class="fas fa-lock"></i>
+                  Confirm Password
+                </label>
+                <input type="password" id="confirm-password" class="enhanced-input" 
+                       placeholder="Confirm your new password" required minlength="6" />
+              </div>
+            </div>
+            
+            <div class="form-actions enhanced-actions">
+              <button type="submit" class="enhanced-btn primary-btn">
+                <i class="fas fa-key"></i>
+                <span>Reset My Password</span>
+              </button>
+            </div>
+          </form>
+          
+          <div class="modal-footer">
+            <p class="footer-text">
+              <i class="fas fa-arrow-left"></i>
+              Remember your password? 
+              <a href="login.html" onclick="switchToLogin()" class="footer-link">Back to Login</a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -918,29 +1258,67 @@ function showForgotPasswordModal() {
   document.body.appendChild(modal);
   document.body.classList.add('modal-open');
 
-  // Setup form handler
-  const form = document.getElementById('forgot-password-form');
-  form.addEventListener('submit', handleForgotPasswordSubmit);
-}
+  // Setup form handlers
+  const verificationForm = document.getElementById('forgot-password-form');
+  const resetForm = document.getElementById('reset-password-form');
+  
+  verificationForm.addEventListener('submit', handleAddressVerification);
+  resetForm.addEventListener('submit', handlePasswordReset);
 
-function closeForgotPasswordModal() {
-  const overlay = document.querySelector('.modal-overlay.forgot-password-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-  document.body.classList.remove('modal-open');
+  // Initialize state
+  window.forgotPasswordState = {
+    verificationToken: null,
+    userEmail: null
+  };
 }
 
 function removeForgotPasswordModal() {
-  closeForgotPasswordModal();
+  const overlay = document.querySelector('.modal-overlay.forgot-password-overlay');
+
+  if (overlay) {
+    const verificationForm = overlay.querySelector('#forgot-password-form');
+    const resetForm = overlay.querySelector('#reset-password-form');
+    
+    if (verificationForm) {
+      verificationForm.removeEventListener('submit', handleAddressVerification);
+    }
+    if (resetForm) {
+      resetForm.removeEventListener('submit', handlePasswordReset);
+    }
+
+    overlay.remove();
+  }
+
+  document.body.classList.remove('modal-open');
 }
 
-// Handle Forgot Password Submission
-async function handleForgotPasswordSubmit(e) {
+
+function switchToLogin() {
+  removeForgotPasswordModal();
+  // Switch to login tab if on auth page
+  if (window.location.pathname.includes('login.html')) {
+    switchTab('login');
+  }
+}
+function closeForgotPasswordModal() {
+  const modal = document.querySelector('.forgot-password-overlay');
+  if (modal) {
+    modal.remove();
+    document.body.classList.remove('modal-open');
+  }
+  removeForgotPasswordModal();
+}
+
+// Handle Address Verification (Step 1)
+async function handleAddressVerification(e) {
   e.preventDefault();
 
   const email = document.getElementById('forgot-password-email').value.trim();
-  const submitBtn = this.querySelector('button[type="submit"]');
+  const street = document.getElementById('forgot-password-street').value.trim();
+  const city = document.getElementById('forgot-password-city').value.trim();
+  const state = document.getElementById('forgot-password-state').value.trim();
+  const postal = document.getElementById('forgot-password-postal').value.trim();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
   const originalText = submitBtn.innerHTML;
 
   // Hide previous messages
@@ -950,8 +1328,8 @@ async function handleForgotPasswordSubmit(e) {
   if (errorEl) errorEl.style.display = 'none';
 
   // Validation
-  if (!email) {
-    showForgotPasswordError('Please enter your email address.');
+  if (!email || !street || !city || !state || !postal) {
+    showForgotPasswordError('Please fill all fields.');
     return;
   }
 
@@ -964,39 +1342,196 @@ async function handleForgotPasswordSubmit(e) {
   try {
     // Show loading state
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
 
-    window.beautifulLoader.show('Sending reset instructions...');
+    window.beautifulLoader.show('Verifying identity...');
 
     const response = await window.apiClient.post('/auth/forgot-password', {
-      Email: email
+      email: email.toLowerCase(),
+      address: {
+        Address_Street: street,
+        Address_City: city,
+        Address_State: state,
+        Address_Postal_Code: postal
+      }
     });
 
     window.beautifulLoader.hide();
 
-    if (response.success) {
-      showForgotPasswordSuccess(response.message);
+    if (response.success && response.verificationToken) {
+      // Store verification data
+      window.forgotPasswordState.verificationToken = response.verificationToken;
+      window.forgotPasswordState.userEmail = response.email;
 
-      // Clear form
-      document.getElementById('forgot-password-form').reset();
-
-      // Auto-close after 3 seconds
-      setTimeout(() => {
-        removeForgotPasswordModal();
-      }, 3000);
+      // Switch to password reset form
+      showPasswordResetStep();
+    } else {
+      showForgotPasswordError(response.message || 'Verification failed. Please check your information.');
     }
 
   } catch (error) {
     window.beautifulLoader.hide();
 
-    const errorMessage = error.response?.data?.message ||
-      'Failed to send reset instructions. Please try again.';
+    const validationError = error.response?.data?.errors?.[0]?.msg;
+    const errorMessage = validationError ||
+      error.response?.data?.message ||
+      'Verification failed. Please try again.';
     showForgotPasswordError(errorMessage);
 
   } finally {
     submitBtn.disabled = false;
     submitBtn.innerHTML = originalText;
   }
+}
+
+// Handle Password Reset (Step 2)
+async function handlePasswordReset(e) {
+  e.preventDefault();
+
+  const newPassword = document.getElementById('new-password').value;
+  const confirmPassword = document.getElementById('confirm-password').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+
+  // Hide previous messages
+  const successEl = document.getElementById('forgot-password-success');
+  const errorEl = document.getElementById('forgot-password-error');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl) errorEl.style.display = 'none';
+
+  // Validation
+  if (!newPassword || !confirmPassword) {
+    showForgotPasswordError('Please fill all password fields.');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showForgotPasswordError('Password must be at least 6 characters long.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showForgotPasswordError('Passwords do not match.');
+    return;
+  }
+
+  if (!window.forgotPasswordState.verificationToken || !window.forgotPasswordState.userEmail) {
+    showForgotPasswordError('Verification token missing. Please start over.');
+    resetToVerificationStep();
+    return;
+  }
+
+  try {
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+
+    window.beautifulLoader.show('Resetting password...');
+
+    const response = await window.apiClient.post('/auth/reset-password-verified', {
+      email: window.forgotPasswordState.userEmail,
+      verificationToken: window.forgotPasswordState.verificationToken,
+      newPassword: newPassword
+    });
+
+    window.beautifulLoader.hide();
+
+    if (response.success) {
+      showForgotPasswordSuccess('Password reset successfully! You can now log in with your new password.');
+
+      // Auto-close after 3 seconds
+      setTimeout(() => {
+        removeForgotPasswordModal();
+      }, 3000);
+    } else {
+      showForgotPasswordError(response.message || 'Password reset failed. Please try again.');
+    }
+
+  } catch (error) {
+    window.beautifulLoader.hide();
+
+    const validationError = error.response?.data?.errors?.[0]?.msg;
+    const errorMessage = validationError ||
+      error.response?.data?.message ||
+      'Password reset failed. Please try again.';
+    showForgotPasswordError(errorMessage);
+
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  }
+}
+
+// Helper functions for form switching
+function showPasswordResetStep() {
+  const verificationForm = document.getElementById('forgot-password-form');
+  const resetForm = document.getElementById('reset-password-form');
+  const modalTitle = document.getElementById('forgot-modal-title');
+  const modalDescription = document.getElementById('forgot-modal-description');
+
+  verificationForm.style.display = 'none';
+  resetForm.style.display = 'block';
+  modalTitle.textContent = 'Reset Password';
+  modalDescription.textContent = 'Identity verified! Please enter your new password.';
+
+  // Update progress indicator
+  const step1 = document.getElementById('step-1');
+  const step2 = document.getElementById('step-2');
+  if (step1) step1.classList.add('completed');
+  if (step2) step2.classList.add('active');
+
+  // Update header icon
+  const headerIcon = document.querySelector('.header-icon i');
+  if (headerIcon) {
+    headerIcon.className = 'fas fa-key';
+  }
+
+  // Clear any messages
+  const successEl = document.getElementById('forgot-password-success');
+  const errorEl = document.getElementById('forgot-password-error');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl) errorEl.style.display = 'none';
+}
+
+function resetToVerificationStep() {
+  const verificationForm = document.getElementById('forgot-password-form');
+  const resetForm = document.getElementById('reset-password-form');
+  const modalTitle = document.getElementById('forgot-modal-title');
+  const modalDescription = document.getElementById('forgot-modal-description');
+
+  verificationForm.style.display = 'block';
+  resetForm.style.display = 'none';
+  modalTitle.textContent = 'Reset Your Password';
+  modalDescription.textContent = 'Enter your email and full address to verify your identity.';
+
+  // Reset progress indicator
+  const step1 = document.getElementById('step-1');
+  const step2 = document.getElementById('step-2');
+  if (step1) {
+    step1.classList.add('active');
+    step1.classList.remove('completed');
+  }
+  if (step2) {
+    step2.classList.remove('active');
+    step2.classList.remove('completed');
+  }
+
+  // Reset header icon
+  const headerIcon = document.querySelector('.header-icon i');
+  if (headerIcon) {
+    headerIcon.className = 'fas fa-shield-alt';
+  }
+
+  // Clear forms and state
+  verificationForm.reset();
+  resetForm.reset();
+  window.forgotPasswordState = { verificationToken: null, userEmail: null };
+
+  // Clear any messages
+  const successEl = document.getElementById('forgot-password-success');
+  const errorEl = document.getElementById('forgot-password-error');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl) errorEl.style.display = 'none';
 }
 
 function showForgotPasswordError(message) {
@@ -1019,13 +1554,13 @@ function showForgotPasswordSuccess(message) {
   }
 }
 
-function switchToLogin() {
-  removeForgotPasswordModal();
-  // Switch to login tab if on auth page
-  if (window.location.pathname.includes('login.html')) {
-    switchTab('login');
-  }
-}
+// function switchToLogin() {
+//   removeForgotPasswordModal();
+//   // Switch to login tab if on auth page
+//   if (window.location.pathname.includes('login.html')) {
+//     switchTab('login');
+//   }
+// }
 
 // ========== REST OF YOUR EXISTING CODE FOLLOWS BELOW ==========
 
@@ -1245,7 +1780,6 @@ function setupProtectedForms() {
       if (typeof authManager === 'undefined' || !authManager.isAuthenticated()) {
         e.preventDefault();
         window.beautifulLoader.show('Redirecting to login...');
-
         setTimeout(() => {
           if (typeof authManager !== 'undefined') {
             authManager.redirectToLogin();
@@ -1432,10 +1966,10 @@ function updatePasswordStrength(password) {
 
   let color, text;
 
-  if (score <= 3) {
+  if (score <= 2) {
     color = '#e74c3c';
     text = 'Weak';
-  } else if (score <= 5) {
+  } else if (score <= 4) {
     color = '#f39c12';
     text = 'Fair';
   } else if (score <= 6) {
@@ -2390,6 +2924,245 @@ function initializeGallery() {
   loadGalleryItems();
 }
 
+// ========== SERVICES CAROUSEL FUNCTIONALITY ==========
+function initializeServicesCarousel() {
+  const track = document.querySelector('.home-services-bar');
+  const cards = Array.from(document.querySelectorAll('.home-service-card'));
+  const prevBtn = document.querySelector('.home-carousel-prev');
+  const nextBtn = document.querySelector('.home-carousel-next');
+  const progressBar = document.querySelector('.home-progress-bar');
+
+  if (!track || cards.length === 0) {
+    console.log('❌ No carousel elements found');
+    return;
+  }
+
+  console.log(`🎠 Initializing carousel with ${cards.length} cards`);
+
+  let currentPosition = 0;
+  let autoScrollInterval;
+  let isDragging = false;
+  let startX = 0;
+  let currentTranslate = 0;
+  let prevTranslate = 0;
+
+  // Get the actual card width including gap
+  function getCardWidth() {
+    if (cards.length === 0) return 0;
+    const card = cards[0];
+    const cardStyle = window.getComputedStyle(card);
+    const gap = 32; // 2rem gap in pixels (matches your CSS)
+    return card.offsetWidth + gap;
+  }
+
+  // Calculate how many cards can be visible at once
+  function getVisibleCardsCount() {
+    const container = track.parentElement;
+    const cardWidth = getCardWidth();
+    return Math.floor(container.offsetWidth / cardWidth);
+  }
+
+  // Calculate maximum scroll position
+  function getMaxPosition() {
+    const visibleCards = getVisibleCardsCount();
+    return Math.max(0, cards.length - visibleCards);
+  }
+
+  // Update carousel position
+  function updateCarousel() {
+    const maxPosition = getMaxPosition();
+    const cardWidth = getCardWidth();
+
+    // Ensure current position is within bounds
+    currentPosition = Math.max(0, Math.min(currentPosition, maxPosition));
+
+    const translateX = -currentPosition * cardWidth;
+    track.style.transform = `translateX(${translateX}px)`;
+
+    console.log(`🔄 Carousel: position ${currentPosition}, translate ${translateX}px, max ${maxPosition}`);
+
+    // Update progress bar
+    if (progressBar) {
+      const progress = maxPosition > 0 ? (currentPosition / maxPosition) * 100 : 100;
+      progressBar.style.width = `${progress}%`;
+    }
+
+    // Update button states
+    updateButtonStates();
+  }
+
+  function updateButtonStates() {
+    const maxPosition = getMaxPosition();
+
+    if (prevBtn) {
+      prevBtn.style.opacity = currentPosition === 0 ? '0.5' : '1';
+      prevBtn.disabled = currentPosition === 0;
+    }
+
+    if (nextBtn) {
+      nextBtn.style.opacity = currentPosition >= maxPosition ? '0.5' : '1';
+      nextBtn.disabled = currentPosition >= maxPosition;
+    }
+  }
+
+  function nextSlide() {
+    const maxPosition = getMaxPosition();
+    if (currentPosition < maxPosition) {
+      currentPosition++;
+      updateCarousel();
+    }
+  }
+
+  function prevSlide() {
+    if (currentPosition > 0) {
+      currentPosition--;
+      updateCarousel();
+    }
+  }
+
+  // Auto-scroll functionality
+  function startAutoScroll() {
+    stopAutoScroll();
+    autoScrollInterval = setInterval(() => {
+      const maxPosition = getMaxPosition();
+      if (currentPosition < maxPosition) {
+        nextSlide();
+      } else {
+        currentPosition = 0; // Loop back to start
+        updateCarousel();
+      }
+    }, 2000); // Change slide every 2 seconds
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollInterval) {
+      clearInterval(autoScrollInterval);
+    }
+  }
+
+  // Drag functionality for touch devices
+  function dragStart(e) {
+    isDragging = true;
+    stopAutoScroll();
+    track.style.transition = 'none';
+
+    if (e.type === 'touchstart') {
+      startX = e.touches[0].clientX;
+    } else {
+      startX = e.clientX;
+      e.preventDefault();
+    }
+
+    prevTranslate = currentPosition * getCardWidth();
+  }
+
+  function drag(e) {
+    if (!isDragging) return;
+
+    let currentX;
+    if (e.type === 'touchmove') {
+      currentX = e.touches[0].clientX;
+    } else {
+      currentX = e.clientX;
+    }
+
+    const diff = startX - currentX;
+    currentTranslate = prevTranslate + diff;
+
+    track.style.transform = `translateX(${-currentTranslate}px)`;
+  }
+
+  function dragEnd() {
+    if (!isDragging) return;
+
+    isDragging = false;
+    track.style.transition = 'transform 0.6s ease';
+
+    // Calculate new position based on drag
+    const cardWidth = getCardWidth();
+    const draggedPosition = Math.round(currentTranslate / cardWidth);
+    const maxPosition = getMaxPosition();
+
+    // Snap to nearest valid position
+    currentPosition = Math.max(0, Math.min(maxPosition, draggedPosition));
+
+    updateCarousel();
+    startAutoScroll();
+  }
+
+  // Event listeners setup
+  function setupEventListeners() {
+    // Navigation buttons
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        stopAutoScroll();
+        nextSlide();
+        startAutoScroll();
+      });
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        stopAutoScroll();
+        prevSlide();
+        startAutoScroll();
+      });
+    }
+
+    // Drag events for touch devices
+    track.addEventListener('touchstart', dragStart, { passive: false });
+    track.addEventListener('touchmove', drag, { passive: false });
+    track.addEventListener('touchend', dragEnd);
+
+    // Mouse events for desktop dragging
+    track.addEventListener('mousedown', dragStart);
+    track.addEventListener('mousemove', drag);
+    track.addEventListener('mouseup', dragEnd);
+    track.addEventListener('mouseleave', dragEnd);
+
+    // Auto-scroll control
+    track.addEventListener('mouseenter', stopAutoScroll);
+    track.addEventListener('mouseleave', startAutoScroll);
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        stopAutoScroll();
+        prevSlide();
+        startAutoScroll();
+      } else if (e.key === 'ArrowRight') {
+        stopAutoScroll();
+        nextSlide();
+        startAutoScroll();
+      }
+    });
+
+    // Window resize handling
+    window.addEventListener('resize', () => {
+      updateCarousel();
+    });
+  }
+
+  // Initialize the carousel
+  function init() {
+    updateCarousel();
+    startAutoScroll();
+    setupEventListeners();
+
+    console.log('✅ Carousel initialized successfully');
+  }
+
+  // Start the carousel
+  init();
+
+  return {
+    next: nextSlide,
+    prev: prevSlide,
+    stop: stopAutoScroll,
+    start: startAutoScroll
+  };
+}
+
 // ========== MAIN DOM CONTENT LOADED ==========
 document.addEventListener('DOMContentLoaded', function () {
   // Show initial loading
@@ -2919,242 +3692,8 @@ document.addEventListener('DOMContentLoaded', function () {
   console.log('🎨 Initializing gallery...');
   initializeGallery();
 
-  function initializeServicesCarousel() {
-    const track = document.querySelector('.home-services-bar');
-    const cards = Array.from(document.querySelectorAll('.home-service-card'));
-    const prevBtn = document.querySelector('.home-carousel-prev');
-    const nextBtn = document.querySelector('.home-carousel-next');
-    const progressBar = document.querySelector('.home-progress-bar');
-
-    if (!track || cards.length === 0) {
-      console.log('❌ No carousel elements found');
-      return;
-    }
-
-    console.log(`🎠 Initializing carousel with ${cards.length} cards`);
-
-    let currentPosition = 0;
-    let autoScrollInterval;
-    let isDragging = false;
-    let startX = 0;
-    let currentTranslate = 0;
-    let prevTranslate = 0;
-
-    // Get the actual card width including gap
-    function getCardWidth() {
-      if (cards.length === 0) return 0;
-      const card = cards[0];
-      const cardStyle = window.getComputedStyle(card);
-      const gap = 32; // 2rem gap in pixels (matches your CSS)
-      return card.offsetWidth + gap;
-    }
-
-    // Calculate how many cards can be visible at once
-    function getVisibleCardsCount() {
-      const container = track.parentElement;
-      const cardWidth = getCardWidth();
-      return Math.floor(container.offsetWidth / cardWidth);
-    }
-
-    // Calculate maximum scroll position
-    function getMaxPosition() {
-      const visibleCards = getVisibleCardsCount();
-      return Math.max(0, cards.length - visibleCards);
-    }
-
-    // Update carousel position
-    function updateCarousel() {
-      const maxPosition = getMaxPosition();
-      const cardWidth = getCardWidth();
-
-      // Ensure current position is within bounds
-      currentPosition = Math.max(0, Math.min(currentPosition, maxPosition));
-
-      const translateX = -currentPosition * cardWidth;
-      track.style.transform = `translateX(${translateX}px)`;
-
-      console.log(`🔄 Carousel: position ${currentPosition}, translate ${translateX}px, max ${maxPosition}`);
-
-      // Update progress bar
-      if (progressBar) {
-        const progress = maxPosition > 0 ? (currentPosition / maxPosition) * 100 : 100;
-        progressBar.style.width = `${progress}%`;
-      }
-
-      // Update button states
-      updateButtonStates();
-    }
-    function updateButtonStates() {
-      const maxPosition = getMaxPosition();
-
-      if (prevBtn) {
-        prevBtn.style.opacity = currentPosition === 0 ? '0.5' : '1';
-        prevBtn.disabled = currentPosition === 0;
-      }
-
-      if (nextBtn) {
-        nextBtn.style.opacity = currentPosition >= maxPosition ? '0.5' : '1';
-        nextBtn.disabled = currentPosition >= maxPosition;
-      }
-    }
-
-    function nextSlide() {
-      const maxPosition = getMaxPosition();
-      if (currentPosition < maxPosition) {
-        currentPosition++;
-        updateCarousel();
-      }
-    }
-
-    function prevSlide() {
-      if (currentPosition > 0) {
-        currentPosition--;
-        updateCarousel();
-      }
-    }
-
-    // Auto-scroll functionality
-    function startAutoScroll() {
-      stopAutoScroll();
-      autoScrollInterval = setInterval(() => {
-        const maxPosition = getMaxPosition();
-        if (currentPosition < maxPosition) {
-          nextSlide();
-        } else {
-          currentPosition = 0; // Loop back to start
-          updateCarousel();
-        }
-      }, 2000); // Change slide every 2 seconds
-    }
-
-    function stopAutoScroll() {
-      if (autoScrollInterval) {
-        clearInterval(autoScrollInterval);
-      }
-    }
-
-    // Drag functionality for touch devices
-    function dragStart(e) {
-      isDragging = true;
-      stopAutoScroll();
-      track.style.transition = 'none';
-
-      if (e.type === 'touchstart') {
-        startX = e.touches[0].clientX;
-      } else {
-        startX = e.clientX;
-        e.preventDefault();
-      }
-
-      prevTranslate = currentPosition * getCardWidth();
-    }
-
-    function drag(e) {
-      if (!isDragging) return;
-
-      let currentX;
-      if (e.type === 'touchmove') {
-        currentX = e.touches[0].clientX;
-      } else {
-        currentX = e.clientX;
-      }
-
-      const diff = startX - currentX;
-      currentTranslate = prevTranslate + diff;
-
-      track.style.transform = `translateX(${-currentTranslate}px)`;
-    }
-
-    function dragEnd() {
-      if (!isDragging) return;
-
-      isDragging = false;
-      track.style.transition = 'transform 0.6s ease';
-
-      // Calculate new position based on drag
-      const cardWidth = getCardWidth();
-      const draggedPosition = Math.round(currentTranslate / cardWidth);
-      const maxPosition = getMaxPosition();
-
-      // Snap to nearest valid position
-      currentPosition = Math.max(0, Math.min(maxPosition, draggedPosition));
-
-      updateCarousel();
-      startAutoScroll();
-    }
-
-    // Event listeners setup
-    function setupEventListeners() {
-      // Navigation buttons
-      if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-          stopAutoScroll();
-          nextSlide();
-          startAutoScroll();
-        });
-      }
-
-      if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-          stopAutoScroll();
-          prevSlide();
-          startAutoScroll();
-        });
-      }
-
-      // Drag events for touch devices
-      track.addEventListener('touchstart', dragStart, { passive: false });
-      track.addEventListener('touchmove', drag, { passive: false });
-      track.addEventListener('touchend', dragEnd);
-
-      // Mouse events for desktop dragging
-      track.addEventListener('mousedown', dragStart);
-      track.addEventListener('mousemove', drag);
-      track.addEventListener('mouseup', dragEnd);
-      track.addEventListener('mouseleave', dragEnd);
-
-      // Auto-scroll control
-      track.addEventListener('mouseenter', stopAutoScroll);
-      track.addEventListener('mouseleave', startAutoScroll);
-
-      // Keyboard navigation
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-          stopAutoScroll();
-          prevSlide();
-          startAutoScroll();
-        } else if (e.key === 'ArrowRight') {
-          stopAutoScroll();
-          nextSlide();
-          startAutoScroll();
-        }
-      });
-
-      // Window resize handling
-      window.addEventListener('resize', () => {
-        updateCarousel();
-      });
-    }
-
-    // Initialize the carousel
-    function init() {
-      updateCarousel();
-      startAutoScroll();
-      setupEventListeners();
-
-      console.log('✅ Carousel initialized successfully');
-    }
-
-    // Start the carousel
-    init();
-
-    return {
-      next: nextSlide,
-      prev: prevSlide,
-      stop: stopAutoScroll,
-      start: startAutoScroll
-    };
-  }
+  // ========== SERVICES CAROUSEL INITIALIZATION ==========
+  console.log('🚀 Initializing services carousel...');
   setTimeout(() => {
     initializeServicesCarousel();
   }, 1000);
