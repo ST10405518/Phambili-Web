@@ -161,10 +161,15 @@ console.log('✅ Gallery routes loaded: /api/gallery');
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Handle client-side routing - serve index.html for all non-API routes
-app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
+app.use((req, res, next) => {
+  // Skip if it's an API route
   if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+    return next();
+  }
+  
+  // Skip if it's a static file request (has file extension)
+  if (path.extname(req.path)) {
+    return next();
   }
   
   // Serve index.html for all other routes (client-side routing)
