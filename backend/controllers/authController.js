@@ -168,6 +168,7 @@ function buildAdminPayload(admin) {
     Phone: admin.Phone || null,
     Role: admin.Role || 'admin',
     First_Login: admin.First_Login ?? false,
+    PasswordResetRequired: admin.PasswordResetRequired ?? false,
     Created_At: admin.createdAt || admin.Created_At || null,
     Updated_At: admin.updatedAt || admin.Updated_At || null
   };
@@ -281,6 +282,7 @@ exports.login = async (req, res) => {
     const userResult = await findUserByEmail(email, { includePassword: true });
 
     if (!userResult) {
+      console.log('❌ User not found for email:', email);
       return res.status(404).json({
         success: false,
         message: 'User not found. Please check your email or register for a new account.'
@@ -288,6 +290,7 @@ exports.login = async (req, res) => {
     }
 
     const { user, role } = userResult;
+    console.log('✅ User found:', { email, role, hasPassword: !!user.Password, firstLogin: user.First_Login, passwordResetRequired: user.PasswordResetRequired });
 
     if (!user.Password) {
       return res.status(401).json({
@@ -297,10 +300,23 @@ exports.login = async (req, res) => {
     }
 
     const passwordMatch = await bcrypt.compare(password, user.Password);
+    console.log('🔐 Password comparison:', { email, passwordMatch, role });
+    
     if (!passwordMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Invalid email or password. Please try again.'
+      });
+    }
+
+    // Check if admin needs to reset password (first login or password reset required)
+    if (role === 'admin' && (user.First_Login || user.PasswordResetRequired)) {
+      return res.json({
+        success: true,
+        requiresPasswordReset: true,
+        message: 'Password reset required. Please set a new password.',
+        email: user.Email,
+        tempPasswordValid: true
       });
     }
 
@@ -585,12 +601,10 @@ exports.resetPasswordVerified = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
     }
 
-    // Hash the new password
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-
     // Update user: set new password, remove token fields
+    // Note: customerService.update will handle password hashing
     await customerService.update(user.ID || user.id || user._id, {
-      Password: passwordHash,
+      Password: newPassword,
       resetPasswordToken: null,
       resetPasswordExpires: null
     });
@@ -629,12 +643,10 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or expired token.' });
     }
 
-    // Hash the new password
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-
     // Update user: set new password, remove token fields
+    // Note: customerService.update will handle password hashing
     await customerService.update(user.ID || user.id || user._id, {
-      Password: passwordHash, // adapt field name if different in your schema
+      Password: newPassword,
       resetPasswordToken: null,
       resetPasswordExpires: null
     });

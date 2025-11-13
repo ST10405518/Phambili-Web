@@ -32,6 +32,27 @@ class AdminDashboard {
 
     this.initializationAttempts++;
 
+    // Add debugging helper to window for manual testing
+    window.debugAuth = () => {
+      console.log('🔍 Complete Authentication Debug:', {
+        authManager: {
+          exists: !!window.authManager,
+          token: window.authManager?.token ? 'Present' : 'Missing',
+          role: window.authManager?.role,
+          userType: window.authManager?.userType,
+          user: window.authManager?.user,
+          isAuthenticated: window.authManager?.isAuthenticated(),
+          hasAdminRole: window.authManager?.hasRole('admin')
+        },
+        localStorage: {
+          authToken: localStorage.getItem('authToken') ? 'Present' : 'Missing',
+          role: localStorage.getItem('role'),
+          userType: localStorage.getItem('userType'),
+          user: localStorage.getItem('user')
+        }
+      });
+    };
+
     try {
       // Step 1: Basic authentication check
       if (!this.checkAuth()) {
@@ -65,6 +86,7 @@ class AdminDashboard {
       });
 
       this.updateAdminInfo();
+      this.initializeFormValidation();
 
       this.isInitialized = true;
       // AdminDashboard init completed
@@ -369,8 +391,19 @@ class AdminDashboard {
         return false;
       }
 
+      // Debug: Log all authentication details
+      console.log('🔍 Authentication Debug:', {
+        token: window.authManager.token ? 'Present' : 'Missing',
+        role: window.authManager.role,
+        userType: window.authManager.userType,
+        user: window.authManager.user,
+        localStorage_role: localStorage.getItem('role'),
+        localStorage_userType: localStorage.getItem('userType')
+      });
+
       if (!window.authManager.hasRole('admin')) {
         console.error('❌ User does not have admin role. Current role:', window.authManager.role);
+        console.error('❌ Expected: admin, Got:', window.authManager.role);
         this.showNotification('Access denied. Admin privileges required.', 'error');
         setTimeout(() => {
           window.location.href = 'index.html';
@@ -1817,7 +1850,11 @@ class AdminDashboard {
               </span>
             </td>
             <td>${admin.Last_Login ? new Date(admin.Last_Login).toLocaleDateString() : 'Never'}</td>
-            
+            <td>
+              <button class="reset-btn" onclick="openPasswordResetModal('${admin.ID}', '${admin.Name}')" title="Reset Password">
+                <i class="fas fa-key"></i> Reset
+              </button>
+            </td>
           </tr>
         `).join('');
       } else {
@@ -2384,6 +2421,44 @@ class AdminDashboard {
       // Force logout
       localStorage.clear();
       window.location.href = 'index.html';
+    }
+  }
+
+  initializeFormValidation() {
+    // Initialize form validator if available
+    if (typeof FormValidator !== 'undefined') {
+      this.formValidator = new FormValidator();
+      
+      // Apply validation to admin profile edit fields
+      const adminProfileFields = [
+        'admin-edit-fullname',
+        'admin-edit-email', 
+        'admin-edit-phone'
+      ];
+      
+      adminProfileFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          this.formValidator.addFieldValidation(field);
+        }
+      });
+
+      // Apply validation to admin creation form
+      const adminForm = document.getElementById('admin-form');
+      if (adminForm) {
+        this.formValidator.addFormValidation(adminForm);
+      }
+
+      // Apply validation to service and product forms
+      const serviceForm = document.getElementById('service-form');
+      if (serviceForm) {
+        this.formValidator.addFormValidation(serviceForm);
+      }
+
+      const productForm = document.getElementById('product-form');
+      if (productForm) {
+        this.formValidator.addFormValidation(productForm);
+      }
     }
   }
 
@@ -5400,3 +5475,128 @@ window.addEventListener('unhandledrejection', function (event) {
     window.adminDashboard.showNotification('An unexpected error occurred', 'error');
   }
 });
+
+// ==================== ADMIN PASSWORD RESET FUNCTIONS ====================
+
+let currentResetAdminId = null;
+
+// Open password reset modal
+function openPasswordResetModal(adminId, adminName) {
+  currentResetAdminId = adminId;
+  
+  // Set admin name in modal
+  document.getElementById('resetAdminName').textContent = adminName;
+  
+  // Reset modal state
+  document.getElementById('passwordResetContent').style.display = 'block';
+  document.getElementById('passwordResetResult').style.display = 'none';
+  
+  // Show modal
+  const modal = document.getElementById('adminPasswordResetModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+// Close password reset modal
+function closePasswordResetModal() {
+  const modal = document.getElementById('adminPasswordResetModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+  
+  // Reset state
+  currentResetAdminId = null;
+  document.getElementById('passwordResetContent').style.display = 'block';
+  document.getElementById('passwordResetResult').style.display = 'none';
+}
+
+// Confirm password reset
+async function confirmPasswordReset() {
+  if (!currentResetAdminId) {
+    window.adminDashboard?.showNotification('No admin selected for password reset', 'error');
+    return;
+  }
+
+  try {
+    // Show loading state
+    const confirmBtn = document.querySelector('#passwordResetContent .btn-danger');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    confirmBtn.disabled = true;
+
+    // Make API call to reset password
+    const response = await window.adminDashboard.api.resetAdminPassword(currentResetAdminId);
+
+    if (response.success) {
+      // Show success result
+      document.getElementById('passwordResetContent').style.display = 'none';
+      document.getElementById('passwordResetResult').style.display = 'block';
+      
+      // Populate result data
+      document.getElementById('resultAdminName').textContent = response.adminName;
+      document.getElementById('tempPasswordDisplay').value = response.tempPassword;
+      
+      // Show success notification
+      window.adminDashboard?.showNotification('Password reset successfully', 'success');
+    } else {
+      throw new Error(response.message || 'Failed to reset password');
+    }
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    window.adminDashboard?.showNotification(
+      error.response?.data?.message || error.message || 'Failed to reset admin password', 
+      'error'
+    );
+    
+    // Reset button state
+    const confirmBtn = document.querySelector('#passwordResetContent .btn-danger');
+    confirmBtn.innerHTML = '<i class="fas fa-key"></i> Generate New Password';
+    confirmBtn.disabled = false;
+  }
+}
+
+// Copy temporary password to clipboard
+async function copyTempPassword() {
+  const passwordInput = document.getElementById('tempPasswordDisplay');
+  const copyBtn = document.querySelector('.btn-copy');
+  
+  try {
+    // Select and copy the password
+    passwordInput.select();
+    passwordInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    // Use modern clipboard API if available
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(passwordInput.value);
+    } else {
+      // Fallback for older browsers
+      document.execCommand('copy');
+    }
+    
+    // Show feedback
+    const originalText = copyBtn.innerHTML;
+    copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+    copyBtn.style.background = '#28a745';
+    
+    setTimeout(() => {
+      copyBtn.innerHTML = originalText;
+      copyBtn.style.background = '#007bff';
+    }, 2000);
+    
+    window.adminDashboard?.showNotification('Password copied to clipboard', 'success');
+    
+  } catch (error) {
+    console.error('Copy failed:', error);
+    window.adminDashboard?.showNotification('Failed to copy password', 'error');
+  }
+}
+
+// Make functions globally available
+window.openPasswordResetModal = openPasswordResetModal;
+window.closePasswordResetModal = closePasswordResetModal;
+window.confirmPasswordReset = confirmPasswordReset;
+window.copyTempPassword = copyTempPassword;

@@ -241,6 +241,16 @@ class AuthManager {
             }
         }
 
+        // Show/hide profile link for registered customers only
+        const customerOnlyElements = document.querySelectorAll('.customer-only');
+        customerOnlyElements.forEach(element => {
+            if (this.isAuthenticated() && this.userType === 'customer') {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
+            }
+        });
+
         // Show/hide login link in navigation
         if (loginLink) {
             const loginListItem = loginLink.closest('.nav-item');
@@ -323,11 +333,11 @@ class AuthManager {
     </div>
     <div class="dropdown-divider"></div>
     <div class="dropdown-links">
-        <a href="javascript:void(0)" class="dropdown-link" onclick="showSection('dashboard')">
+        <a href="admin-dashboard.html" class="dropdown-link">
             <i class="fas fa-tachometer-alt"></i>
             Admin Dashboard
         </a>
-        <a href="javascript:void(0)" class="dropdown-link" onclick="showSection('admin-profile')">
+        <a href="admin-dashboard.html#admin-profile" class="dropdown-link">
             <i class="fas fa-user-cog"></i>
             Admin Profile
         </a>

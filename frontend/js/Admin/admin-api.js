@@ -653,6 +653,11 @@ class AdminAPIService {
         return this.makeRequest('DELETE', `/admins/${id}`);
     }
 
+    async resetAdminPassword(adminId) {
+        this.clearCache('admins');
+        return this.makeRequest('POST', `/admins/${adminId}/reset-password`);
+    }
+
     // ==================== ORDER MANAGEMENT ====================
 
     async getOrders() {

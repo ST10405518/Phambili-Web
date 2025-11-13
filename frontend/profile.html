@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="./css/profile.css">
+    <link rel="stylesheet" href="./css/form-validation.css">
+    <link rel="stylesheet" href="./css/password-visibility.css">
 
 </head>
 
@@ -77,6 +79,7 @@
                                 <label>Full Name</label>
                                 <p id="info-fullname">Loading...</p>
                                 <input type="text" class="edit-input" id="edit-fullname" style="display: none;">
+                                <div class="validation-hint" style="display: none;">Only letters, spaces, hyphens, and apostrophes allowed</div>
                             </div>
                             <div class="info-item">
                                 <label>Email Address</label>
@@ -86,7 +89,8 @@
                             <div class="info-item">
                                 <label>Phone Number</label>
                                 <p id="info-phone">Not set</p>
-                                <input type="tel" class="edit-input" id="edit-phone" style="display: none;">
+                                <input type="tel" class="edit-input" id="edit-phone" style="display: none;" placeholder="012 345 6789">
+                                <div class="phone-format-hint" style="display: none;">10 digits (South African format)</div>
                             </div>
                             <div class="info-item">
                                 <label>Member Since</label>
@@ -128,18 +132,21 @@
                                 <p id="info-address-city">Not set</p>
                                 <input type="text" class="edit-input" id="edit-address-city" style="display: none;"
                                     placeholder="City" required>
+                                <div class="validation-hint" style="display: none;">Only letters, spaces, hyphens, and apostrophes allowed</div>
                             </div>
                             <div class="info-item">
                                 <label>State/Province</label>
                                 <p id="info-address-state">Not set</p>
                                 <input type="text" class="edit-input" id="edit-address-state" style="display: none;"
                                     placeholder="State" required>
+                                <div class="validation-hint" style="display: none;">Only letters, spaces, hyphens, and apostrophes allowed</div>
                             </div>
                             <div class="info-item">
                                 <label>Postal Code</label>
                                 <p id="info-address-zip">Not set</p>
                                 <input type="text" class="edit-input" id="edit-address-zip" style="display: none;"
-                                    placeholder="Postal Code" required>
+                                    placeholder="1234" required>
+                                <div class="postal-format-hint" style="display: none;">4 digits only</div>
                             </div>
                         </div>
                         <div class="address-preview"
@@ -249,6 +256,8 @@
         </div>
     </div>
 
+    <script src="./js/form-validator.js"></script>
+    <script src="./js/password-visibility.js"></script>
     <script src="./js/auth-manager.js"></script>
     <script src="./js/profile.js"></script>
     <script type="module" src="./js/script.js"></script>

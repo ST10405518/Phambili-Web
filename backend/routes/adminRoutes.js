@@ -93,6 +93,9 @@ router.get('/admins/:id', (req, res) => adminController.getAdminDetails(req, res
 router.put('/admins/:id', (req, res) => adminController.updateAdmin(req, res));
 router.delete('/admins/:id', (req, res) => adminController.deleteAdmin(req, res));
 
+// Admin password reset (main admin only)
+router.post('/admins/:adminId/reset-password', (req, res) => adminController.resetAdminPassword(req, res));
+
 // Dashboard
 router.get('/dashboard/stats', (req, res) => adminController.getDashboardStats(req, res));
 router.get('/dashboard/analytics', (req, res) => adminController.getBookingAnalytics(req, res));

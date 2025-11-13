@@ -13,23 +13,27 @@
       </div>
 
       <div>
-        <label for="fpStreet">Street</label>
-        <input id="fpStreet" name="Address_Street" type="text" required />
+        <label for="fpStreet">Street Address</label>
+        <input id="fpStreet" name="Address_Street" type="text" required placeholder="123 Main Street" />
+        <div class="validation-hint">Enter your complete street address</div>
       </div>
 
       <div>
         <label for="fpCity">City</label>
-        <input id="fpCity" name="Address_City" type="text" required />
+        <input id="fpCity" name="Address_City" type="text" required placeholder="Johannesburg" />
+        <div class="validation-hint">Letters only</div>
       </div>
 
       <div>
-        <label for="fpState">State</label>
-        <input id="fpState" name="Address_State" type="text" required />
+        <label for="fpState">State/Province</label>
+        <input id="fpState" name="Address_State" type="text" required placeholder="Gauteng" />
+        <div class="validation-hint">Letters only</div>
       </div>
 
       <div>
         <label for="fpPostal">Postal Code</label>
-        <input id="fpPostal" name="Address_Postal_Code" type="text" required />
+        <input id="fpPostal" name="Address_Postal_Code" type="text" required placeholder="1234" />
+        <div class="postal-format-hint">4 digits only</div>
       </div>
 
       <button type="submit" class="btn">Verify Identity</button>

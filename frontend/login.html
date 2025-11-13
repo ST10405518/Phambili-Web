@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/form-validation.css" />
+    <link rel="stylesheet" href="./css/password-visibility.css" />
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 
@@ -92,8 +94,9 @@
                 </div>
                 <form id="register-form" class="auth-form" novalidate>
                     <div class="auth-form-group">
-                        <label for="auth-fullname" class="auth-label">Full Name</label>
+                        <label for="auth-fullname" class="auth-label required-field">Full Name</label>
                         <input type="text" id="auth-fullname" class="auth-input" placeholder="John Doe" required />
+                        <div class="validation-hint">Only letters, spaces, hyphens, and apostrophes allowed</div>
                         <div id="auth-fullname-error" class="auth-error" role="alert">
                             Please enter your full name
                         </div>
@@ -221,10 +224,12 @@
             </div>
 
             <div class="auth-footer">
-                © 2023 Phambili Ma-Africa Cleaning Services. All rights reserved.
+                2023 Phambili Ma-Africa Cleaning Services. All rights reserved.
             </div>
         </div>
     </div>
+    <script src="./js/form-validator.js"></script>
+    <script src="./js/password-visibility.js"></script>
     <script type="module" src="./js/auth-manager.js?v=20251111"></script>
     <script type="module" src="./js/script.js?v=20251111"></script>
 </body>

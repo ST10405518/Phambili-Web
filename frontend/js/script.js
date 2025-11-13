@@ -3561,12 +3561,27 @@ document.addEventListener('DOMContentLoaded', function () {
         if (response.token) {
           const userType = response.role === 'admin' ? 'admin' : 'customer';
 
+          console.log('🔍 Login Response Debug:', {
+            token: response.token ? 'Present' : 'Missing',
+            role: response.role,
+            user: response.user,
+            userType: userType
+          });
+
           authManager.login(
             response.token,
             response.role,
             response.user,
             userType
           );
+
+          // Verify login was successful
+          console.log('🔍 Post-Login AuthManager State:', {
+            isAuthenticated: authManager.isAuthenticated(),
+            role: authManager.role,
+            userType: authManager.userType,
+            hasAdminRole: authManager.hasRole('admin')
+          });
 
           if (loginSuccess) {
             loginSuccess.style.display = 'block';

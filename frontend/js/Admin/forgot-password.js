@@ -1,7 +1,6 @@
 /**
- * Handles the "forgot password" modal with two-step process:
- * 1. Address verification
- * 2. Password reset
+ * Handles admin "forgot password" - redirects to admin dashboard
+ * Admins don't have addresses, so they need another admin to reset their password
  */
 
 (function () {
@@ -14,13 +13,22 @@
   const modalTitle = document.getElementById('forgotModalTitle');
   const modalDescription = document.getElementById('forgotModalDescription');
 
-  let verificationToken = null;
-  let userEmail = null;
+  let isAdminContext = false;
 
   function showModal() {
     if (!modal) return;
-    modal.style.display = 'block';
-    resetToVerificationStep();
+    
+    // Check if this is admin context (admin login page)
+    isAdminContext = window.location.pathname.includes('admin') || 
+                     document.title.includes('Admin') ||
+                     document.querySelector('.admin-login-form');
+    
+    if (isAdminContext) {
+      showAdminForgotPasswordMessage();
+    } else {
+      modal.style.display = 'block';
+      resetToVerificationStep();
+    }
   }
   
   function hideModal() {
@@ -29,16 +37,51 @@
     resetToVerificationStep();
   }
 
-  function resetToVerificationStep() {
-    verificationForm.style.display = 'block';
+  function showAdminForgotPasswordMessage() {
+    // Show admin-specific message
+    modal.style.display = 'block';
+    verificationForm.style.display = 'none';
     resetForm.style.display = 'none';
-    modalTitle.textContent = 'Forgot Password';
-    modalDescription.textContent = 'Enter your email and full address to verify your identity.';
+    
+    modalTitle.textContent = 'Admin Password Reset';
+    modalDescription.innerHTML = `
+      <div style="text-align: center; padding: 2rem;">
+        <i class="fas fa-user-shield" style="font-size: 3rem; color: #007bff; margin-bottom: 1rem;"></i>
+        <h3>Admin Password Reset Required</h3>
+        <p style="margin: 1rem 0; color: #666;">
+          Admin passwords can only be reset by other administrators for security reasons.
+        </p>
+        <p style="margin: 1rem 0; font-weight: 600;">
+          Please contact another admin to reset your password through the Admin Dashboard.
+        </p>
+        <div style="margin: 2rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+          <strong>Steps for password reset:</strong>
+          <ol style="text-align: left; margin: 0.5rem 0; padding-left: 1.5rem;">
+            <li>Contact another administrator</li>
+            <li>Ask them to log into the Admin Dashboard</li>
+            <li>They can reset your password in Admin Management</li>
+            <li>Use the temporary password they provide</li>
+          </ol>
+        </div>
+        <button class="btn btn-primary" onclick="window.location.href='admin-dashboard.html'" style="margin-right: 1rem;">
+          <i class="fas fa-external-link-alt"></i> Go to Admin Dashboard
+        </button>
+        <button class="btn btn-secondary" onclick="hideModal()">
+          <i class="fas fa-times"></i> Close
+        </button>
+      </div>
+    `;
     messageEl.textContent = '';
-    verificationForm.reset();
-    resetForm.reset();
-    verificationToken = null;
-    userEmail = null;
+  }
+
+  function resetToVerificationStep() {
+    if (verificationForm) verificationForm.style.display = 'block';
+    if (resetForm) resetForm.style.display = 'none';
+    if (modalTitle) modalTitle.textContent = 'Forgot Password';
+    if (modalDescription) modalDescription.textContent = 'Enter your email and full address to verify your identity.';
+    if (messageEl) messageEl.textContent = '';
+    if (verificationForm) verificationForm.reset();
+    if (resetForm) resetForm.reset();
   }
 
   function showPasswordResetStep() {
@@ -116,9 +159,15 @@
     }
   });
 
-  // Step 2: Password reset
+  // Step 2: Password reset (only for customers, not admins)
   resetForm && resetForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Skip if admin context
+    if (isAdminContext) {
+      return;
+    }
+    
     messageEl.textContent = '';
 
     const newPassword = document.getElementById('newPassword').value;
@@ -136,12 +185,6 @@
 
     if (newPassword !== confirmPassword) {
       messageEl.textContent = 'Passwords do not match.';
-      return;
-    }
-
-    if (!verificationToken || !userEmail) {
-      messageEl.textContent = 'Verification token missing. Please start over.';
-      resetToVerificationStep();
       return;
     }
 
@@ -168,4 +211,7 @@
       messageEl.textContent = 'Server error, please try again later.';
     }
   });
+
+  // Make hideModal globally available for the admin message buttons
+  window.hideModal = hideModal;
 })();

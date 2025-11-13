@@ -15,6 +15,7 @@ class ProfileManager {
         this.user = authManager.getUser();
         this.isEditing = false;
         this.currentEditingSection = null;
+        this.formValidator = null;
         this.init();
     }
 
@@ -54,6 +55,38 @@ class ProfileManager {
         this.setupEventListeners();
         this.setupEditHandlers();
         this.setupBookingHistoryListeners();
+        this.initializeFormValidation();
+    }
+
+    initializeFormValidation() {
+        // Initialize form validator if available
+        if (typeof FormValidator !== 'undefined') {
+            this.formValidator = new FormValidator();
+            
+            // Apply validation to profile edit fields
+            const profileFields = [
+                'edit-fullname',
+                'edit-email', 
+                'edit-phone',
+                'edit-address-street',
+                'edit-address-city',
+                'edit-address-state',
+                'edit-address-zip'
+            ];
+            
+            profileFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    this.formValidator.addFieldValidation(field);
+                }
+            });
+
+            // Also apply to password change form
+            const passwordForm = document.getElementById('change-password-form');
+            if (passwordForm) {
+                this.formValidator.addFormValidation(passwordForm);
+            }
+        }
     }
 
     async loadUserData() {
@@ -283,6 +316,12 @@ class ProfileManager {
                 }
             }
         });
+
+        // Show validation hints
+        const validationHints = sectionElement.querySelectorAll('.validation-hint, .phone-format-hint, .postal-format-hint');
+        validationHints.forEach(hint => {
+            hint.style.display = 'block';
+        });
     }
 
     cancelEditing(section) {
@@ -301,6 +340,12 @@ class ProfileManager {
 
         inputs.forEach(input => {
             input.style.display = 'none';
+        });
+
+        // Hide validation hints
+        const validationHints = sectionElement.querySelectorAll('.validation-hint, .phone-format-hint, .postal-format-hint');
+        validationHints.forEach(hint => {
+            hint.style.display = 'none';
         });
 
         this.isEditing = false;

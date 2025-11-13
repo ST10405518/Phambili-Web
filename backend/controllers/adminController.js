@@ -835,10 +835,10 @@ exports.firstLoginSetup = async (req, res) => {
       });
     }
 
-    if (!admin.First_Login) {
+    if (!admin.First_Login && !admin.PasswordResetRequired) {
       return res.status(400).json({
         success: false,
-        message: 'First login already completed.'
+        message: 'Password reset not required for this account.'
       });
     }
 
@@ -859,8 +859,13 @@ exports.firstLoginSetup = async (req, res) => {
       });
     }
 
-    // Update password and clear First_Login
-    await adminService.update(admin.ID, { Password: NewPassword, First_Login: false, Last_Login: new Date().toISOString() });
+    // Update password and clear First_Login and PasswordResetRequired flags
+    await adminService.update(admin.ID, { 
+      Password: NewPassword, 
+      First_Login: false, 
+      PasswordResetRequired: false,
+      Last_Login: new Date().toISOString() 
+    });
 
     // Generate token
     const jwt = require('jsonwebtoken');
@@ -1215,6 +1220,67 @@ exports.provideQuotation = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
   const bookingController = require('./bookingController');
   return bookingController.updateBookingStatus(req, res);
+};
+
+// ==================== ADMIN PASSWORD RESET ====================
+
+exports.resetAdminPassword = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    
+    // Check if current user is admin
+    const currentAdmin = await adminService.findById(req.user.id);
+    if (!currentAdmin || currentAdmin.Role !== 'main_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only main administrators can reset admin passwords'
+      });
+    }
+
+    // Check if target admin exists
+    const targetAdmin = await adminService.findById(adminId);
+    if (!targetAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    // Generate a temporary password (8 characters: letters + numbers)
+    const generateTempPassword = () => {
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      let password = '';
+      for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    };
+
+    const tempPassword = generateTempPassword();
+    
+    // Update admin password (adminService.update will hash it automatically)
+    await adminService.update(adminId, {
+      Password: tempPassword,
+      PasswordResetRequired: true,
+      PasswordResetAt: new Date().toISOString(),
+      PasswordResetBy: req.user.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully',
+      tempPassword: tempPassword,
+      adminName: targetAdmin.Name,
+      adminEmail: targetAdmin.Email
+    });
+
+  } catch (error) {
+    console.error('Error resetting admin password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset admin password'
+    });
+  }
 };
 
 module.exports = exports;

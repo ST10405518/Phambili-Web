@@ -5,14 +5,26 @@ const storageService = require('../firebase-services/storageService');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit for gallery videos, 10MB should be enough for images
   },
   fileFilter: (req, file, cb) => {
-    // Accept images only
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    // Accept images and videos for gallery, images only for other uploads
+    const isGalleryUpload = req.originalUrl.includes('/gallery');
     
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      return cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed!'), false);
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/avi', 'video/mov', 'video/wmv'];
+    
+    if (isGalleryUpload) {
+      // Gallery allows both images and videos
+      const allAllowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+      if (!allAllowedTypes.includes(file.mimetype)) {
+        return cb(new Error('Only image files (JPEG, PNG, GIF, WebP) and video files (MP4, MOV, AVI, WMV) are allowed for gallery!'), false);
+      }
+    } else {
+      // Other uploads only allow images
+      if (!allowedImageTypes.includes(file.mimetype)) {
+        return cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed!'), false);
+      }
     }
     cb(null, true);
   }

@@ -9,6 +9,140 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/admin-dashboard.css">
+    <link rel="stylesheet" href="./css/form-validation.css">
+    <link rel="stylesheet" href="./css/password-visibility.css">
+    <style>
+        /* Password Reset Modal Styles */
+        .warning-message {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: #856404;
+        }
+        
+        .warning-message i {
+            color: #f39c12;
+            margin-right: 0.5rem;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: #155724;
+            text-align: center;
+        }
+        
+        .success-message i {
+            color: #28a745;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .temp-password-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .temp-password-container label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: #495057;
+        }
+        
+        .password-display {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .temp-password-input {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: #fff;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            padding: 0.75rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        
+        .btn-copy {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-copy:hover {
+            background: #0056b3;
+        }
+        
+        .instructions {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .instructions h4 {
+            margin: 0 0 0.5rem 0;
+            color: #495057;
+        }
+        
+        .instructions ol {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.25rem;
+            color: #6c757d;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .reset-btn {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+        }
+        
+        .reset-btn i {
+            margin-right: 0.25rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -270,6 +404,7 @@
                                             <p id="admin-info-fullname">Loading...</p>
                                             <input type="text" class="edit-input" id="admin-edit-fullname"
                                                 style="display: none;">
+                                            <div class="validation-hint" style="display: none;">Only letters, spaces, hyphens, and apostrophes allowed</div>
                                         </div>
                                         <div class="info-item">
                                             <label>Email Address</label>
@@ -281,7 +416,8 @@
                                             <label>Phone Number</label>
                                             <p id="admin-info-phone">Not set</p>
                                             <input type="tel" class="edit-input" id="admin-edit-phone"
-                                                style="display: none;">
+                                                style="display: none;" placeholder="012 345 6789">
+                                            <div class="phone-format-hint" style="display: none;">10 digits (South African format)</div>
                                         </div>
                                         <div class="info-item">
                                             <label>Admin Since</label>
@@ -489,6 +625,7 @@
                                     <th scope="col">Role</th>
                                     <th scope="col">Status</th>
                                     <th scope="col">Last Login</th>
+                                    <th scope="col">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="adminsTable">
@@ -848,6 +985,7 @@
                     <div class="form-group">
                         <label for="admin-name">Full Name</label>
                         <input type="text" id="admin-name" class="form-input" required>
+                        <div class="validation-hint">Only letters, spaces, hyphens, and apostrophes allowed</div>
                     </div>
                     <div class="form-group">
                         <label for="admin-email">Email Address</label>
@@ -855,7 +993,8 @@
                     </div>
                     <div class="form-group">
                         <label for="admin-phone">Phone Number</label>
-                        <input type="tel" id="admin-phone" class="form-input">
+                        <input type="tel" id="admin-phone" class="form-input" placeholder="012 345 6789">
+                        <div class="phone-format-hint">10 digits (South African format)</div>
                     </div>
                     <div class="form-group">
                         <label for="admin-role">Admin Role</label>
@@ -878,10 +1017,80 @@
             </div>
         </div>
     </div>
+
+    <!-- Admin Password Reset Modal -->
+    <div id="adminPasswordResetModal" class="modal" style="display: none;" role="dialog" aria-labelledby="passwordResetModalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="passwordResetModalTitle"><i class="fas fa-key" aria-hidden="true"></i> Reset Admin Password</h2>
+                <button class="modal-close" onclick="closePasswordResetModal()" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="passwordResetContent">
+                    <div class="warning-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>You are about to reset the password for <strong id="resetAdminName"></strong>.</p>
+                        <p>A temporary password will be generated that they must use to log in and set a new password.</p>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closePasswordResetModal()">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="confirmPasswordReset()">
+                            <i class="fas fa-key"></i>
+                            Generate New Password
+                        </button>
+                    </div>
+                </div>
+
+                <div id="passwordResetResult" style="display: none;">
+                    <div class="success-message">
+                        <i class="fas fa-check-circle"></i>
+                        <h3>Password Reset Successful</h3>
+                        <p>A temporary password has been generated for <strong id="resultAdminName"></strong>:</p>
+                    </div>
+                    
+                    <div class="temp-password-container">
+                        <label>Temporary Password:</label>
+                        <div class="password-display">
+                            <input type="text" id="tempPasswordDisplay" readonly class="temp-password-input">
+                            <button type="button" class="btn btn-copy" onclick="copyTempPassword()" title="Copy to clipboard">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="instructions">
+                        <h4>Instructions:</h4>
+                        <ol>
+                            <li>Copy the temporary password above</li>
+                            <li>Share it securely with the admin (via secure channel)</li>
+                            <li>The admin must use this password to log in</li>
+                            <li>They will be prompted to set a new password on first login</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="closePasswordResetModal()">
+                            <i class="fas fa-check"></i>
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Overlay -->
     <div id="modalOverlay" class="modal-overlay" aria-hidden="true"></div>
 
     <!-- Scripts -->
+    <script src="./js/form-validator.js"></script>
+    <script src="./js/password-visibility.js"></script>
     <script src="./js/auth-manager.js?v=20251111"></script>
     <script src="./js/Admin/admin-api.js?v=20251111"></script>
     <script src="./js/admin-dashboard.js?v=20251111"></script>
