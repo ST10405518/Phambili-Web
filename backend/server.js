@@ -48,7 +48,9 @@ app.use(cors({
       'http://127.0.0.1:5500'
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if origin matches allowed origins or Render domains
+    if (allowedOrigins.includes(origin) || 
+        (origin && origin.includes('.onrender.com'))) {
       callback(null, true);
     } else {
       callback(null, true); // Allow all in development
@@ -154,6 +156,20 @@ console.log('✅ Payment routes loaded: /api/payments');
 
 app.use('/api/gallery', galleryRoutes);
 console.log('✅ Gallery routes loaded: /api/gallery');
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Handle client-side routing - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+  }
+  
+  // Serve index.html for all other routes (client-side routing)
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
 
 // FIXED: Health check route with /api prefix
 app.get('/api/health', (req, res) => {
