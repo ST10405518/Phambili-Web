@@ -1,12 +1,27 @@
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-// Basic rate limiter: 100 requests per 15 minutes per IP
+// Rate limiter that skips static files
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for static files (CSS, JS, images, fonts, etc.)
+    const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json', '.map'];
+    const path = req.path.toLowerCase();
+    const isStaticFile = staticExtensions.some(ext => path.endsWith(ext));
+    
+    // Also skip if it's a static file path
+    const isStaticPath = path.startsWith('/css/') || 
+                        path.startsWith('/js/') || 
+                        path.startsWith('/images/') || 
+                        path.startsWith('/fonts/') ||
+                        path.startsWith('/upload/');
+    
+    return isStaticFile || isStaticPath;
+  }
 });
 
 // Configure Helmet with proper CSP for production
@@ -46,6 +61,13 @@ const helmetConfig = helmet({
         "'self'",
         "https://fonts.gstatic.com",
         "https://cdnjs.cloudflare.com",
+        "data:"
+      ],
+      mediaSrc: [
+        "'self'",
+        "https://storage.googleapis.com",
+        "https://*.firebasestorage.app",
+        "blob:",
         "data:"
       ],
       objectSrc: ["'none'"],

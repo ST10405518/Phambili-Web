@@ -67,6 +67,42 @@ app.use(cors({
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+
+// IMPORTANT: Serve static files BEFORE rate limiting and other middleware
+// This ensures static files are served with correct MIME types and aren't rate-limited
+const staticOptions = {
+  dotfiles: 'ignore',
+  etag: true,
+  index: false,
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0',
+  setHeaders: (res, filePath) => {
+    // Set correct MIME types for CSS - this is critical to prevent MIME type errors
+    if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    }
+    // Set proper headers for images
+    if (filePath.endsWith('.png') || filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || 
+        filePath.endsWith('.gif') || filePath.endsWith('.webp') || filePath.endsWith('.ico')) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+    // Set proper headers for JavaScript
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Cache-Control', process.env.NODE_ENV === 'production' ? 'public, max-age=86400' : 'no-cache');
+    }
+    // Set proper headers for HTML files
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+};
+
+// Apply static middleware
+app.use(express.static(path.join(__dirname, '../frontend'), staticOptions));
+
+// Apply security middleware (Helmet + Rate Limiter) AFTER static files
+// This ensures static files bypass rate limiting
 app.use(...security);
 
 // Ensure upload directories exist
@@ -159,22 +195,8 @@ console.log('✅ Payment routes loaded: /api/payments');
 app.use('/api/gallery', galleryRoutes);
 console.log('✅ Gallery routes loaded: /api/gallery');
 
-// Serve static frontend files (CSS, JS, images, etc.)
-// This must be BEFORE the client-side routing handler
-app.use(express.static(path.join(__dirname, '../frontend'), {
-  dotfiles: 'ignore',
-  etag: true,
-  extensions: ['html', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'],
-  index: false,
-  maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0',
-  setHeaders: (res, path) => {
-    // Set proper headers for images
-    if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.webp')) {
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    }
-  }
-}));
+// Note: Static files are now served BEFORE security middleware (above)
+// This ensures proper MIME types and avoids rate limiting
 
 // Handle client-side routing - serve index.html for all non-API routes
 app.use((req, res, next) => {

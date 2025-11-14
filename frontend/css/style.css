@@ -654,7 +654,7 @@ body.overlay-active {
 
 /* ========================================== HERO SECTION START ========================================== */
 .hero {
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/index2.jpg');
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/images/index2.jpg');
     background-size: cover;
     background-position: center;
     height: calc(113vh - var(--header-height));
@@ -6504,7 +6504,7 @@ body.modal-open {
 @media (-webkit-min-device-pixel-ratio: 2),
 (min-resolution: 192dpi) {
     .hero {
-        background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/frontend/images/Copilot_20251027_032028.png');
+        background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/images/Copilot_20251027_032028.png');
     }
 }
 
