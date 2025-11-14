@@ -102,12 +102,15 @@ body {
     background: linear-gradient(165deg, var(--primary-color) 0%, var(--primary-dark) 50%, #004488 100%);
     color: var(--white);
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: 1050; /* Increased z-index to ensure it stays above other content */
     transition: var(--transition);
     box-shadow: var(--shadow-xl);
     border-right: none;
+    transform: translateX(0);
 }
 
 .sidebar-header {
@@ -291,7 +294,7 @@ body {
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1040; /* Below sidebar but above content */
     border-bottom: 1px solid var(--border-color);
     height: var(--header-height);
     backdrop-filter: blur(10px);
@@ -306,25 +309,27 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     padding: 0.5rem 1rem;
     background: var(--white);
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: var(--transition);
-    border: 1px solid var(--border-light);
     position: relative;
+    background: var(--secondary-color);
+    border: 1px solid var(--border-light);
 }
 
 .user-info:hover {
-    background: var(--secondary-color);
-    box-shadow: var(--shadow);
-    transform: translateY(-1px);
+    background: var(--secondary-dark);
 }
 
 .user-avatar {
@@ -347,19 +352,18 @@ body {
 
 .user-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 5px);
     right: 0;
-    width: 280px;
     background: var(--white);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-xl);
-    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+    min-width: 220px;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-10px);
+    transform: translateY(10px);
     transition: var(--transition);
-    border: 1px solid var(--border-color);
-    margin-top: 0.5rem;
+    z-index: 1060; /* Above both header and sidebar */
+    border: 1px solid var(--border-light);
 }
 
 .user-dropdown.show {
@@ -1239,6 +1243,64 @@ body {
     overflow: hidden;
 }
 
+.mobile-menu-btn {
+    display: none; /* Hidden by default */
+    background: var(--primary-color);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    font-size: 1.25rem;
+    color: white;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 1060;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    overflow: hidden;
+}
+
+.mobile-menu-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.mobile-menu-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    background: var(--primary-dark);
+}
+
+.mobile-menu-btn:active {
+    transform: translateY(0);
+}
+
+.mobile-menu-btn:hover::before {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.mobile-menu-btn i {
+    transition: transform 0.3s ease;
+}
+
+.mobile-menu-btn.active i {
+    transform: rotate(90deg);
+}
+
 .btn-view-details::before {
     content: '';
     position: absolute;
@@ -1373,6 +1435,12 @@ body {
     .btn-view-details,
     .btn-quote-small {
         font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .mobile-menu-btn {
+        display: flex; /* Show on mobile */
     }
 }
 
@@ -1775,11 +1843,60 @@ body {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     overflow: hidden;
+    width: 100%;
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0;
 }
 
 .data-table {
     width: 100%;
+    min-width: 100%;
     border-collapse: collapse;
+    margin: 0;
+}
+
+/* Responsive table container */
+@media (max-width: 768px) {
+    .table-container {
+        border-radius: 0;
+        box-shadow: none;
+        margin: 0 -1rem;
+        width: auto;
+    }
+    
+    .table-wrapper {
+        border-radius: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 1rem;
+    }
+    
+    .data-table {
+        min-width: 100%;
+    }
+    
+    /* Add scroll indicator for better UX */
+    .table-wrapper::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .table-wrapper::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 4px;
+    }
+    
+    .table-wrapper::-webkit-scrollbar-track {
+        background: var(--border-color);
+    }
 }
 
 .data-table th,
@@ -2353,46 +2470,6 @@ body {
     color: var(--text-light);
     font-size: 0.9rem;
     margin: 0;
-}
-
-
-
-
-.consultation-actions {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-}
-
-.btn-call-customer {
-    background: var(--info);
-    color: var(--white);
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: var(--transition);
-}
-
-.btn-call-customer:hover {
-    background: var(--info);
-    filter: brightness(0.9);
-}
-
-.btn-schedule {
-    background: var(--primary-color);
-    color: var(--white);
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: var(--transition);
-}
-
-.btn-schedule:hover {
-    background: var(--primary-dark);
 }
 
 /* ===== NOTES & PREFERENCES STYLES ===== */
@@ -3040,10 +3117,18 @@ body {
 }
 
 /* ===== RESPONSIVE STYLES ===== */
+/* Base mobile-first styles */
 @media (max-width: 768px) {
+    :root {
+        --sidebar-width: 0;
+        --header-height: 60px;
+    }
+
     .sidebar {
-        width: 100%;
         transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        width: 280px;
+        z-index: 1001;
     }
 
     .sidebar.mobile-open {

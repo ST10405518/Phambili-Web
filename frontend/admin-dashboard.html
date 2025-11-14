@@ -14,141 +14,15 @@
     <link rel="stylesheet" href="./css/form-validation.css">
     <link rel="stylesheet" href="./css/password-visibility.css">
     <style>
-        /* Password Reset Modal Styles */
-        .warning-message {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            color: #856404;
-        }
-        
-        .warning-message i {
-            color: #f39c12;
-            margin-right: 0.5rem;
-        }
-        
-        .success-message {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            color: #155724;
-            text-align: center;
-        }
-        
-        .success-message i {
-            color: #28a745;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .temp-password-container {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        
-        .temp-password-container label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            display: block;
-            color: #495057;
-        }
-        
-        .password-display {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        
-        .temp-password-input {
-            flex: 1;
-            font-family: 'Courier New', monospace;
-            font-size: 1.1rem;
-            font-weight: bold;
-            background: #fff;
-            border: 2px solid #007bff;
-            border-radius: 4px;
-            padding: 0.75rem;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-        
-        .btn-copy {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 0.75rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        
-        .btn-copy:hover {
-            background: #0056b3;
-        }
-        
-        .instructions {
-            background: #e9ecef;
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        
-        .instructions h4 {
-            margin: 0 0 0.5rem 0;
-            color: #495057;
-        }
-        
-        .instructions ol {
-            margin: 0;
-            padding-left: 1.5rem;
-        }
-        
-        .instructions li {
-            margin-bottom: 0.25rem;
-            color: #6c757d;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-            border: none;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        
-        .reset-btn {
-            background: #ffc107;
-            color: #212529;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .reset-btn:hover {
-            background: #e0a800;
-            transform: translateY(-1px);
-        }
-        
-        .reset-btn i {
-            margin-right: 0.25rem;
-        }
+       
     </style>
 </head>
 
 <body>
     <div class="dashboard-container">
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -241,6 +115,9 @@
             <!-- Header -->
             <header class="header" role="banner">
                 <div class="header-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle navigation menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     <h1 id="pageTitle">Dashboard</h1>
                 </div>
                 <div class="header-right">
@@ -509,12 +386,12 @@
                         <table class="data-table" aria-label="Customers management table">
                             <thead>
                                 <tr>
-                                    <th scope="col">ID</th>
+                                    <th scope="col" class="hide-mobile">ID</th>
                                     <th scope="col">Name</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Phone</th>
-                                    <th scope="col">Address</th>
-                                    <th scope="col">Join Date</th>
+                                    <th scope="col" class="hide-small-mobile">Email</th>
+                                    <th scope="col" class="hide-mobile">Phone</th>
+                                    <th scope="col" class="hide-tablet">Address</th>
+                                    <th scope="col" class="hide-mobile">Join Date</th>
                                 </tr>
                             </thead>
                             <tbody id="customersTable">
@@ -620,13 +497,13 @@
                         <table class="data-table" aria-label="Admin management table">
                             <thead>
                                 <tr>
-                                    <th scope="col">ID</th>
+                                    <th scope="col" class="hide-mobile">ID</th>
                                     <th scope="col">Name</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Phone</th>
-                                    <th scope="col">Role</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Last Login</th>
+                                    <th scope="col" class="hide-small-mobile">Email</th>
+                                    <th scope="col" class="hide-mobile">Phone</th>
+                                    <th scope="col" class="hide-tablet">Role</th>
+                                    <th scope="col" class="hide-tablet">Status</th>
+                                    <th scope="col" class="hide-laptop">Last Login</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -1094,8 +971,18 @@
     <script src="./js/form-validator.js"></script>
     <script src="./js/password-visibility.js"></script>
     <script src="./js/auth-manager.js?v=20251111"></script>
-    <script src="./js/Admin/admin-api.js?v=20251111"></script>
-    <script src="./js/admin-dashboard.js?v=20251111"></script>
+    <script src="./js/admin-dashboard.js"></script>
+    <script src="./js/Admin/admin-api.js"></script>
+    
+    <!-- Mobile Navigation Script -->
+    <!-- NOTE: Mobile navigation and dropdown functionality is now handled in admin-dashboard.js -->
+    <!-- This script has been moved to admin-dashboard.js for better organization and to prevent conflicts -->
+    <!--
+    <script>
+        // Mobile navigation is now handled by AdminDashboard.setupMobileSidebar() and setupDropdownToggle()
+        // See admin-dashboard.js for implementation
+    </script>
+    -->
 </body>
 
 </html>

@@ -105,7 +105,7 @@ body {
 
 .icon-link,
 .cart-btn {
-    color: var(--text-color);
+    color: var(--white); /* White color before scrolling */
     background: none;
     border: none;
     padding: 5px;
@@ -124,6 +124,18 @@ body {
 .cart-btn img {
     width: 28px;
     height: 28px;
+    filter: brightness(0) invert(1); /* Make icons white */
+    transition: filter 0.3s ease;
+}
+
+.header-scrolled .icon-link img,
+.header-scrolled .cart-btn img {
+    filter: brightness(0) invert(0); /* Keep icons dark/colored when scrolled */
+}
+
+.icon-link:hover img,
+.cart-btn:hover img {
+    filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(5deg); /* Yellow tint on hover */
 }
 
 .cart-badge {
@@ -147,7 +159,7 @@ body {
     border: none;
     padding: 15px;
     cursor: pointer;
-    color: var(--text-color);
+    color: var(--white); /* White color before scrolling */
     transition: all 0.3s ease;
     z-index: 10;
     margin-right: auto;
@@ -156,10 +168,24 @@ body {
 .hamburger-btn img {
     width: 28px;
     height: 28px;
+    filter: brightness(0) invert(1); /* Make hamburger icon white */
+    transition: filter 0.3s ease;
+}
+
+.header-scrolled .hamburger-btn {
+    color: var(--text-color); /* Dark color when scrolled */
+}
+
+.header-scrolled .hamburger-btn img {
+    filter: brightness(0) invert(0); /* Dark hamburger icon when scrolled */
 }
 
 .hamburger-btn:hover {
     color: var(--accent-color);
+}
+
+.hamburger-btn:hover img {
+    filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(5deg); /* Yellow tint on hover */
 }
 
 /* ========================================== HEADER END ========================================== */
@@ -654,10 +680,11 @@ body.overlay-active {
 
 /* ========================================== HERO SECTION START ========================================== */
 .hero {
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/images/indexes.png');
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%);
     background-size: cover;
     background-position: center;
-    height: calc(113vh - var(--header-height));
+    background-repeat: no-repeat;
+    height: 100vh; /* Use full viewport height */
     min-height: 500px;
     display: flex;
     align-items: center;
@@ -667,14 +694,33 @@ body.overlay-active {
     box-sizing: border-box;
     margin-top: calc(-1 * var(--header-height));
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Default landscape image for larger screens */
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/frontend/images/indexes.jpg');
+    background-size: cover;
+    background-position: center 10%; /* Adjust this to control vertical position */
+    background-repeat: no-repeat;
+    z-index: -1;
 }
 
 .hero-content {
     width: 100%;
     max-width: 1200px;
     padding: 0 15px;
+    margin-top: var(--header-height); /* Push content down below header */
+    position: relative;
+    z-index: 2;
 }
-
 .hero h1 {
     font-size: 3.8rem;
     margin-bottom: 1.5rem;
@@ -5098,12 +5144,23 @@ body.modal-open {
         font-size: 9px;
     }
 
+    .hero {
+        min-height: 350px;
+        background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.3) 30%); /* Darker gradient */
+    }
+    
     .hero h1 {
         font-size: 1.6rem;
+        margin-bottom: 1rem;
     }
-
+    
     .hero p {
         font-size: 0.85rem;
+        margin-bottom: 20px;
+    }
+    
+    .hero-scroll-indicator {
+        bottom: 20px;
     }
 
     .btn {
@@ -5152,6 +5209,9 @@ body.modal-open {
         height: 50px;
     }
 
+    .hero {
+        background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.25) 30%); /* Darker gradient */
+    }
     .hero h1 {
         font-size: 1.8rem;
     }
@@ -5524,12 +5584,12 @@ body.modal-open {
     }
 
     .hero {
-        height: calc(100svh - 100px);
+        height: 100vh; 
         min-height: 400px;
-        margin-top: -100px;
+        margin-top: calc(-1 * var(--header-height)); /* ADD THIS BACK */
         padding: 0 20px;
+        background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.2) 60%); /* Darker gradient for better text visibility */
     }
-
     .hero h1 {
         font-size: 2.2rem;
         margin-bottom: 1rem;
@@ -6342,27 +6402,28 @@ body.modal-open {
     .hero {
         height: auto;
         min-height: 100vh;
-        padding: 2rem 0;
+        padding: 4rem 0;
     }
-
+    
     .hero h1 {
         font-size: 2rem;
         margin-bottom: 0.5rem;
     }
-
+    
     .hero p {
         font-size: 0.9rem;
         margin-bottom: 1rem;
     }
-
+    
     .hero-buttons {
         flex-direction: row;
         gap: 0.5rem;
     }
-
+    
     .btn {
         padding: 8px 16px;
         font-size: 0.8rem;
+        min-width: auto;
     }
 }
 
@@ -6500,19 +6561,52 @@ body.modal-open {
     }
 }
 
-/* High DPI Screens */
-@media (-webkit-min-device-pixel-ratio: 2),
-(min-resolution: 192dpi) {
-    .hero {
-        background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.05) 60%), url('/images/indexes1.png');
-        /* Add these properties for full coverage */
-        background-size: cover;
+/* Portrait image for mobile devices */
+@media (max-width: 768px) and (orientation: portrait) {
+    .hero::before {
+        background-image: url('/frontend/images/indexes.jpg');
+    }
+}
+
+/* Additional optimization for very small screens in portrait */
+@media (max-width: 480px) and (orientation: portrait) {
+    .hero::before {
+        background-position: center 30%; /* Adjust focus for portrait */
+    }
+}
+
+/* Landscape orientation on mobile - use landscape image */
+@media (max-width: 768px) and (orientation: landscape) {
+    .hero::before {
+        background-image: url('/frontend/images/indexes.jpg');
         background-position: center center;
-        background-repeat: no-repeat;
-        background-attachment: scroll;
-        min-height: 100vh;
+    }
+    
+    .hero {
         height: 100vh;
-        width: 100%;
+        min-height: 400px;
+    }
+}
+
+/* High DPI screens with responsive images */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    /* High DPI landscape */
+    .hero::before {
+        background-image: url('/frontend/images/indexes.png');
+    }
+    
+    /* High DPI portrait */
+    @media (max-width: 768px) and (orientation: portrait) {
+        .hero::before {
+            background-image: url('/frontend/images/indexes.jpg');
+        }
+    }
+}
+
+/* Ensure content stays readable on very tall screens */
+@media (min-height: 1000px) {
+    .hero {
+        min-height: 700px;
     }
 }
 

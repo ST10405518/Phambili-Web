@@ -784,27 +784,8 @@ class AdminDashboard {
         });
       });
 
-      // Sidebar toggle for mobile
-      const sidebarToggle = document.getElementById('sidebarToggle');
-      if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', () => {
-          const sidebar = document.getElementById('sidebar');
-          sidebar.classList.toggle('mobile-open');
-        });
-      }
-
-      // Close sidebar when clicking outside on mobile
-      document.addEventListener('click', (e) => {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggle = document.getElementById('sidebarToggle');
-
-        if (window.innerWidth <= 768 &&
-          sidebar && sidebar.classList.contains('mobile-open') &&
-          !sidebar.contains(e.target) &&
-          sidebarToggle && !sidebarToggle.contains(e.target)) {
-          sidebar.classList.remove('mobile-open');
-        }
-      });
+      // Enhanced sidebar toggle for mobile with dropdown coordination
+      this.setupMobileSidebar();
 
       // Setup admin dropdown in header
       this.setupAdminDropdown();
@@ -863,6 +844,21 @@ class AdminDashboard {
 
       adminProfileLink.appendChild(dropdown);
       this.setupDropdownToggle(adminProfileLink, dropdown);
+      
+      // Close dropdown when clicking on dropdown links
+      const dropdownLinks = dropdown.querySelectorAll('.dropdown-link');
+      dropdownLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          // Small delay to allow the onclick handler to execute first
+          setTimeout(() => {
+            dropdown.classList.remove('show');
+            document.body.classList.remove('user-dropdown-open');
+            if (adminProfileLink) {
+              adminProfileLink.setAttribute('aria-expanded', 'false');
+            }
+          }, 100);
+        });
+      });
     } catch (error) {
       console.error('Error setting up admin dropdown:', error);
     }
@@ -872,42 +868,186 @@ class AdminDashboard {
     try {
       let isDropdownOpen = false;
 
+      const closeUserDropdown = () => {
+        dropdown.classList.remove('show');
+        document.body.classList.remove('user-dropdown-open');
+        isDropdownOpen = false;
+        if (userIcon) {
+          userIcon.setAttribute('aria-expanded', 'false');
+        }
+      };
+
+      const closeMobileSidebar = () => {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (sidebar) {
+          sidebar.classList.remove('mobile-open');
+        }
+        if (sidebarOverlay) {
+          sidebarOverlay.classList.remove('active');
+        }
+        document.body.classList.remove('sidebar-open');
+      };
+
       const toggleDropdown = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
         if (isDropdownOpen) {
-          dropdown.classList.remove('show');
-          isDropdownOpen = false;
+          closeUserDropdown();
         } else {
+          // Close mobile sidebar first if open
+          closeMobileSidebar();
+          
           // Close any other open dropdowns
           document.querySelectorAll('.user-dropdown.show').forEach(d => {
             d.classList.remove('show');
           });
+          
           dropdown.classList.add('show');
+          document.body.classList.add('user-dropdown-open');
           isDropdownOpen = true;
+          if (userIcon) {
+            userIcon.setAttribute('aria-expanded', 'true');
+          }
         }
       };
 
-      userIcon.addEventListener('click', toggleDropdown);
+      // Add click listener to user icon
+      if (userIcon) {
+        userIcon.addEventListener('click', toggleDropdown);
+      }
 
       // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
-        if (!userIcon.contains(e.target)) {
-          dropdown.classList.remove('show');
-          isDropdownOpen = false;
+        if (isDropdownOpen && userIcon && !userIcon.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
+          closeUserDropdown();
         }
       });
 
       // Close on escape key
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && isDropdownOpen) {
-          dropdown.classList.remove('show');
-          isDropdownOpen = false;
+          closeUserDropdown();
         }
       });
     } catch (error) {
       console.error('Error setting up dropdown toggle:', error);
+    }
+  }
+
+  setupMobileSidebar() {
+    try {
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const userInfo = document.getElementById('admin-profile-link');
+
+      const closeUserDropdown = () => {
+        const userDropdown = document.querySelector('.user-dropdown');
+        if (userDropdown) {
+          userDropdown.classList.remove('show');
+          document.body.classList.remove('user-dropdown-open');
+          if (userInfo) {
+            userInfo.setAttribute('aria-expanded', 'false');
+          }
+        }
+      };
+
+      const closeMobileMenu = () => {
+        if (sidebar) {
+          sidebar.classList.remove('mobile-open');
+        }
+        if (sidebarOverlay) {
+          sidebarOverlay.classList.remove('active');
+        }
+        document.body.classList.remove('sidebar-open');
+      };
+
+      const toggleMobileMenu = (e) => {
+        if (e) {
+          e.stopPropagation();
+        }
+        
+        const isOpen = sidebar && sidebar.classList.contains('mobile-open');
+        
+        if (isOpen) {
+          closeMobileMenu();
+        } else {
+          // Close user dropdown first if open
+          closeUserDropdown();
+          
+          if (sidebar) {
+            sidebar.classList.add('mobile-open');
+          }
+          if (sidebarOverlay) {
+            sidebarOverlay.classList.add('active');
+          }
+          document.body.classList.add('sidebar-open');
+        }
+      };
+
+      // Mobile menu button
+      if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+      }
+
+      // Sidebar toggle button (inside sidebar)
+      if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleMobileMenu);
+      }
+
+      // Overlay click to close
+      if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileMenu);
+      }
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768) {
+          const isSidebarOpen = sidebar && sidebar.classList.contains('mobile-open');
+          
+          if (isSidebarOpen) {
+            const clickedInsideSidebar = sidebar && sidebar.contains(e.target);
+            const clickedMenuBtn = mobileMenuBtn && mobileMenuBtn.contains(e.target);
+            const clickedSidebarToggle = sidebarToggle && sidebarToggle.contains(e.target);
+            
+            if (!clickedInsideSidebar && !clickedMenuBtn && !clickedSidebarToggle) {
+              closeMobileMenu();
+            }
+          }
+        }
+      });
+
+      // Close menu when clicking nav links on mobile
+      const navLinks = document.querySelectorAll('.nav-link');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth <= 768) {
+            closeMobileMenu();
+          }
+        });
+      });
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+          closeMobileMenu();
+        }
+      });
+
+      // Handle escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const isSidebarOpen = sidebar && sidebar.classList.contains('mobile-open');
+          if (isSidebarOpen) {
+            closeMobileMenu();
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up mobile sidebar:', error);
     }
   }
 
