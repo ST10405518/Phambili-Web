@@ -3,6 +3,14 @@ class Config {
     constructor() {
         this.environment = this.detectEnvironment();
         this.baseURL = this.getBaseURL();
+        // Log configuration in all environments for debugging
+        console.log('🔧 App Config Initialized:', {
+            environment: this.environment,
+            baseURL: this.baseURL,
+            hostname: window.location.hostname,
+            protocol: window.location.protocol,
+            host: window.location.host
+        });
     }
 
     detectEnvironment() {
@@ -22,7 +30,10 @@ class Config {
             return 'http://localhost:5001/api';
         } else {
             // In production, API is served from the same domain
-            return `${window.location.protocol}//${window.location.host}/api`;
+            // Use the current origin instead of localhost
+            const baseURL = `${window.location.protocol}//${window.location.host}/api`;
+            console.log('🌐 Production baseURL:', baseURL);
+            return baseURL;
         }
     }
 
@@ -56,13 +67,15 @@ class Config {
 }
 
 // Create global config instance
+// Ensure it's created immediately when script loads
 window.appConfig = new Config();
 
-// Log configuration in development
-if (window.appConfig.isDevelopment()) {
-    console.log('🔧 App Config:', {
-        environment: window.appConfig.environment,
-        baseURL: window.appConfig.baseURL,
-        hostname: window.location.hostname
-    });
+// Verify config is accessible
+if (!window.appConfig || !window.appConfig.baseURL) {
+    console.error('❌ Config initialization failed! Falling back to localhost');
+    window.appConfig = {
+        baseURL: 'http://localhost:5001/api',
+        environment: 'development',
+        getImageURL: (path) => path
+    };
 }

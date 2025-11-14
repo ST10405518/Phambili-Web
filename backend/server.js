@@ -24,7 +24,9 @@ const galleryRoutes = require('./routes/galleryRoutes');
 const app = express();
 
 // Configure Helmet with proper CORS settings for images
+// Note: CSP is now configured in security.js middleware
 app.use(helmet({
+  contentSecurityPolicy: false, // Disable here, handled in security.js
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginEmbedderPolicy: false
 }));

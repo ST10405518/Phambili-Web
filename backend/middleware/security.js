@@ -9,4 +9,49 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = [helmet(), limiter];
+// Configure Helmet with proper CSP for production
+const helmetConfig = helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        // In production, allow same-origin only (frontend and backend on same domain)
+        // In development, allow localhost connections
+        ...(process.env.NODE_ENV === 'production' 
+          ? [] 
+          : ["http://localhost:*", "ws://localhost:*", "ws://127.0.0.1:*"])
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https:",
+        "blob:",
+        "https://storage.googleapis.com"
+      ],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'", // Needed for some frontend frameworks
+        "https://cdn.jsdelivr.net"
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+        "https://fonts.googleapis.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "data:"
+      ],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+    }
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
+});
+
+module.exports = [helmetConfig, limiter];
