@@ -602,7 +602,7 @@ class AuthManager {
         }
 
         try {
-            const response = await axios.get('http://localhost:5001/api/customer/profile', {
+            const response = await axios.get(`${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api'}/customer/profile`, {
                 headers: this.getAuthHeaders()
             });
 
@@ -703,7 +703,7 @@ class AuthManager {
         if (!this.token) return false;
 
         try {
-            const response = await axios.get('http://localhost:5001/api/auth/verify', {
+            const response = await axios.get(`${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api'}/auth/verify`, {
                 headers: this.getAuthHeaders()
             });
             return response.data.valid;
@@ -730,7 +730,7 @@ class AuthManager {
 // In your login.js or auth script
 async function handleLogin(email, password) {
     try {
-        const response = await axios.post('http://localhost:5001/api/auth/login', {
+        const response = await axios.post(`${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api'}/auth/login`, {
             Email: email,
             Password: password
         });

@@ -1,7 +1,7 @@
 // Enhanced Admin API Service with Proper Rate Limiting Handling
 class AdminAPIService {
     constructor() {
-        this.baseURL = 'http://localhost:5001/api';
+        this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api';
 
         // Enhanced rate limiting properties
         this.rateLimitState = {

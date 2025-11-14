@@ -75,7 +75,7 @@ class RateLimitManager {
 // ========== ENHANCED API CLIENT WITH RATE LIMIT COORDINATION ==========
 class EnhancedAPIClient {
   constructor() {
-    this.baseURL = 'http://localhost:5001/api';
+    this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api';
     this.pendingRequests = new Map();
     this.requestQueue = [];
     this.maxConcurrentRequests = 2;

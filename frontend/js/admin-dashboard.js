@@ -1060,7 +1060,7 @@ class AdminDashboard {
           // Fix image URL - use absolute URL for development
           let imageUrl = service.Image_URL;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `http://localhost:5001${imageUrl}`;
+            imageUrl = window.appConfig ? window.appConfig.getImageURL(imageUrl) : `http://localhost:5001${imageUrl}`;
           }
 
           return `
@@ -1345,7 +1345,7 @@ class AdminDashboard {
           // Fix image URL
           let imageUrl = product.Image_URL;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `http://localhost:5001${imageUrl}`;
+            imageUrl = window.appConfig ? window.appConfig.getImageURL(imageUrl) : `http://localhost:5001${imageUrl}`;
           }
 
           return `
@@ -5225,7 +5225,7 @@ function openProductModal(product = null) {
       if (product.Image_URL && preview) {
         let imageUrl = product.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:5001${imageUrl}`;
+          imageUrl = window.appConfig ? window.appConfig.getImageURL(imageUrl) : `${window.location.origin}/api${imageUrl}`;
         }
         preview.innerHTML = `
           <img src="${imageUrl}" alt="${product.Name}" 
@@ -5345,7 +5345,7 @@ function openServiceModal(service = null) {
       if (service.Image_URL && imagePreview) {
         let imageUrl = service.Image_URL;
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `http://localhost:5001${imageUrl}`;
+          imageUrl = window.appConfig ? window.appConfig.getImageURL(imageUrl) : `http://localhost:5001${imageUrl}`;
         }
         imagePreview.innerHTML = `
           <img src="${imageUrl}" alt="${service.Name}" 

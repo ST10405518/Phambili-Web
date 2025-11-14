@@ -1,7 +1,7 @@
 // services.js - Unified Customer Services with No Code Duplication
 class CustomerServices {
     constructor() {
-        this.baseURL = 'http://localhost:5001/api';
+        this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api';
         this.services = [];
         this.filteredServices = [];
         this.currentCategory = 'all';
@@ -1674,23 +1674,11 @@ class CustomerServices {
         return emailRegex.test(email);
     }
 
-
-    isValidPostalCode(postalCode) {
-        const postalRegex = /^[A-Za-z0-9\s\-]{3,10}$/;
-        return postalRegex.test(postalCode);
-    }
-
-    getImageUrl(imageUrl) {
-        if (!imageUrl) return '';
-        if (imageUrl.startsWith('http')) return imageUrl;
-        if (imageUrl.startsWith('/upload/')) return `http://localhost:5001${imageUrl}`;
-        if (imageUrl.includes('.')) return `http://localhost:5001/upload/services/${imageUrl}`;
-        return '';
-    }
-
     getServiceIcon(serviceName) {
         const icons = {
-            'Standard & Deep Cleaning': 'fa-broom',
+            'Residential Cleaning': 'fa-home',
+            'Commercial Cleaning': 'fa-building',
+            'Deep Cleaning': 'fa-broom',
             'Office Cleaning': 'fa-building',
             'Window Cleaning': 'fa-window-restore',
             'Carpet Cleaning': 'fa-rug',
