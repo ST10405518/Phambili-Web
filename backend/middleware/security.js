@@ -39,11 +39,13 @@ const helmetConfig = helmet({
         "'self'",
         "'unsafe-inline'",
         "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com",
         "https://fonts.googleapis.com"
       ],
       fontSrc: [
         "'self'",
         "https://fonts.gstatic.com",
+        "https://cdnjs.cloudflare.com",
         "data:"
       ],
       objectSrc: ["'none'"],

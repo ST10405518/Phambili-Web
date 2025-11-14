@@ -159,8 +159,22 @@ console.log('✅ Payment routes loaded: /api/payments');
 app.use('/api/gallery', galleryRoutes);
 console.log('✅ Gallery routes loaded: /api/gallery');
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Serve static frontend files (CSS, JS, images, etc.)
+// This must be BEFORE the client-side routing handler
+app.use(express.static(path.join(__dirname, '../frontend'), {
+  dotfiles: 'ignore',
+  etag: true,
+  extensions: ['html', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'],
+  index: false,
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0',
+  setHeaders: (res, path) => {
+    // Set proper headers for images
+    if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.webp')) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+  }
+}));
 
 // Handle client-side routing - serve index.html for all non-API routes
 app.use((req, res, next) => {
@@ -170,8 +184,10 @@ app.use((req, res, next) => {
   }
   
   // Skip if it's a static file request (has file extension)
-  if (path.extname(req.path)) {
-    return next();
+  // Let express.static handle it above
+  const ext = path.extname(req.path);
+  if (ext && ext !== '.html') {
+    return next(); // Let static middleware handle it, will 404 if not found
   }
   
   // Serve index.html for all other routes (client-side routing)

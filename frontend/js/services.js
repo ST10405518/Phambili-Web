@@ -1537,7 +1537,7 @@ class CustomerServices {
         const imagePlaceholder = document.getElementById('image-placeholder');
 
         if (popupImage && service.Image_URL) {
-            popupImage.src = this.getImageUrl(service.Image_URL);
+            popupImage.src = window.appConfig ? window.appConfig.getImageURL(service.Image_URL) : service.Image_URL;
             popupImage.alt = service.Name;
             popupImage.style.display = 'block';
 
@@ -1604,7 +1604,7 @@ class CustomerServices {
       
       <div class="service-image-container">
         ${service.Image_URL ? `
-          <img src="${this.getImageUrl(service.Image_URL)}" alt="${service.Name}" 
+          <img src="${window.appConfig ? window.appConfig.getImageURL(service.Image_URL) : service.Image_URL}" alt="${service.Name}" 
                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
         ` : ''}
         <div class="service-image-placeholder" style="${service.Image_URL ? 'display: none;' : ''}">
@@ -2389,7 +2389,7 @@ class CustomerServices {
         else if (serviceNameLower.includes('private') || serviceNameLower.includes('household')) serviceIcon = serviceIcons.private;
         else if (serviceNameLower.includes('bin')) serviceIcon = serviceIcons.bin;
 
-        const formattedImageUrl = this.getImageUrl(imageUrl);
+        const formattedImageUrl = window.appConfig ? window.appConfig.getImageURL(imageUrl) : imageUrl;
 
         return `
     <div class="home-service-card" 
