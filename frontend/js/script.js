@@ -2,12 +2,12 @@
 class RateLimitManager {
   constructor() {
     this.requests = new Map();
-    this.maxRequests = 15; // Increased from 10
+    this.maxRequests = 30; // Increased from 15 to allow more requests on mobile
     this.windowMs = 60000; // 1 minute window
-    this.retryAfter = 3000; // Reduced from 5000
+    this.retryAfter = 2000; // Reduced from 3000 for faster retries
     this.globalRequestCount = 0;
     this.lastGlobalRequest = 0;
-    this.globalDelay = 300; // Base delay between requests
+    this.globalDelay = 150; // Reduced from 300ms - half the delay for better mobile performance
   }
 
   checkLimit(key) {
@@ -78,13 +78,14 @@ class EnhancedAPIClient {
     this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api';
     this.pendingRequests = new Map();
     this.requestQueue = [];
-    this.maxConcurrentRequests = 2;
+    this.maxConcurrentRequests = 4; // Increased from 2 for better mobile performance
     this.activeRequests = 0;
     this.isPaused = false;
     this.requestCache = new Map();
     this.requestThrottle = new Map();
-    this.throttleDelay = 100; // 100ms between similar requests
+    this.throttleDelay = 50; // Reduced from 100ms for faster mobile requests
     this.maxCacheSize = 100; // Maximum number of cached responses
+    this.timeout = window.innerWidth <= 768 ? 60000 : 20000; // 60s for mobile, 20s for desktop - increased for slower networks
   }
 
   // Generate cache key for request
@@ -2693,7 +2694,8 @@ function createGalleryItem(item, index, width, height) {
 }
 function initializeVideoAutoplay() {
   const videos = document.querySelectorAll('.gallery-item video');
-
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   videos.forEach((video, index) => {
     // Reset video and let it maintain natural dimensions
     video.currentTime = 0;
