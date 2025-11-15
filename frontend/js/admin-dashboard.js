@@ -844,7 +844,7 @@ class AdminDashboard {
 
       adminProfileLink.appendChild(dropdown);
       this.setupDropdownToggle(adminProfileLink, dropdown);
-      
+
       // Close dropdown when clicking on dropdown links
       const dropdownLinks = dropdown.querySelectorAll('.dropdown-link');
       dropdownLinks.forEach(link => {
@@ -898,12 +898,12 @@ class AdminDashboard {
         } else {
           // Close mobile sidebar first if open
           closeMobileSidebar();
-          
+
           // Close any other open dropdowns
           document.querySelectorAll('.user-dropdown.show').forEach(d => {
             d.classList.remove('show');
           });
-          
+
           dropdown.classList.add('show');
           document.body.classList.add('user-dropdown-open');
           isDropdownOpen = true;
@@ -969,15 +969,15 @@ class AdminDashboard {
         if (e) {
           e.stopPropagation();
         }
-        
+
         const isOpen = sidebar && sidebar.classList.contains('mobile-open');
-        
+
         if (isOpen) {
           closeMobileMenu();
         } else {
           // Close user dropdown first if open
           closeUserDropdown();
-          
+
           if (sidebar) {
             sidebar.classList.add('mobile-open');
           }
@@ -1007,12 +1007,12 @@ class AdminDashboard {
       document.addEventListener('click', (e) => {
         if (window.innerWidth <= 768) {
           const isSidebarOpen = sidebar && sidebar.classList.contains('mobile-open');
-          
+
           if (isSidebarOpen) {
             const clickedInsideSidebar = sidebar && sidebar.contains(e.target);
             const clickedMenuBtn = mobileMenuBtn && mobileMenuBtn.contains(e.target);
             const clickedSidebarToggle = sidebarToggle && sidebarToggle.contains(e.target);
-            
+
             if (!clickedInsideSidebar && !clickedMenuBtn && !clickedSidebarToggle) {
               closeMobileMenu();
             }
@@ -1081,7 +1081,7 @@ class AdminDashboard {
           this.initGallerySection();
           break;
         default:
-          // No specific data loader for section
+        // No specific data loader for section
       }
     } catch (error) {
       console.error(`Error loading ${section} data:`, error);
@@ -2568,14 +2568,14 @@ class AdminDashboard {
     // Initialize form validator if available
     if (typeof FormValidator !== 'undefined') {
       this.formValidator = new FormValidator();
-      
+
       // Apply validation to admin profile edit fields
       const adminProfileFields = [
         'admin-edit-fullname',
-        'admin-edit-email', 
+        'admin-edit-email',
         'admin-edit-phone'
       ];
-      
+
       adminProfileFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
@@ -2624,87 +2624,116 @@ class AdminDashboard {
       console.error('Error hiding loading:', error);
     }
   }
+  // Enhanced date formatting like WhatsApp
+  formatRelativeDate(dateString) {
+    if (!dateString) return 'Unknown date';
 
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const inputDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+      const diffTime = today.getTime() - inputDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const timeStr = date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      if (diffDays === 0) return `Today at ${timeStr}`;
+      if (diffDays === 1) return `Yesterday at ${timeStr}`;
+      if (diffDays < 7) {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return `${dayNames[date.getDay()]} at ${timeStr}`;
+      }
+
+      // After a week, show full date
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()} at ${timeStr}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return new Date(dateString).toLocaleString();
+    }
+  }
   displayBookingCards(bookings) {
     const container = document.getElementById('bookingsGrid');
     if (!container) return;
 
-    if (bookings && bookings.length > 0) {
-      container.innerHTML = bookings.map(booking => {
-        const isPast = this.isPastBooking(booking.Date);
+    const filteredBookings = this.filterAdminDeletedBookings(bookings);
 
-        // Format date to show month name instead of number
+    if (filteredBookings && filteredBookings.length > 0) {
+      container.innerHTML = filteredBookings.map(booking => {
+        const isPast = this.isPastBooking(booking.Date);
         const bookingDate = booking.Date ? new Date(booking.Date) : null;
         const formattedDate = bookingDate ?
           `${this.getMonthName(bookingDate.getMonth())} ${bookingDate.getDate()}, ${bookingDate.getFullYear()}` :
           'Date not set';
-
-        // Format time properly (remove seconds if present)
-        const formattedTime = booking.Time ?
-          booking.Time.split(':').slice(0, 2).join(':') : '';
+        const formattedTime = booking.Time ? booking.Time.split(':').slice(0, 2).join(':') : '';
 
         return `
-        <div class="booking-card workflow-card ${isPast ? 'past-booking' : ''}" data-booking-id="${booking.ID}" data-status="${booking.Status}">
-          <!-- Header with service and date - matching screenshot layout -->
-          <div class="card-header-workflow">
-            <div class="service-info">
-              <h4>${booking.Service?.Name || 'Unknown Service'}</h4>
-              <span class="booking-date">
-                <i class="fas fa-calendar"></i>
-                ${formattedDate} at ${formattedTime}
-              </span>
-            </div>
-            <div class="booking-meta">
-              <span class="status-badge ${booking.Status}">${this.formatStatus(booking.Status)}</span>
-            </div>
+      <div class="booking-card workflow-card ${isPast ? 'past-booking' : ''}" data-booking-id="${booking.ID}" data-status="${booking.Status}">
+        <div class="card-header-workflow">
+          <div class="service-info">
+            <h4>${booking.Service?.Name || 'Unknown Service'}</h4>
+            <span class="booking-date">
+              <i class="fas fa-calendar"></i>
+              ${formattedDate} at ${formattedTime}
+            </span>
           </div>
-
-          <!-- Customer info - exact match to screenshot -->
-          <div class="customer-info-workflow">
-            <div class="customer-main-info">
-              <strong>${booking.Customer?.Full_Name || 'Unknown Customer'}</strong>
-              <div class="customer-contact">
-                <span><i class="fas fa-phone"></i> ${booking.Customer?.Phone || 'No phone'}</span>
-                <span><i class="fas fa-envelope"></i> ${booking.Customer?.Email || 'No email'}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Special Instructions -->
-          ${booking.Special_Instructions ? `
-            <div class="special-instructions">
-              <p><strong>Special Instructions:</strong> ${booking.Special_Instructions}</p>
-            </div>
-          ` : ''}
-
-          <!-- Action buttons based on status - enhanced with call functionality -->
-          <div class="workflow-actions">
-            ${this.renderActionButtons(booking.Status, booking.ID, isPast, booking.Customer?.Phone)}
-          </div>
-
-          <!-- Quick info footer - simplified -->
-          <div class="booking-quick-info">
-            ${booking.Quoted_Amount ? `
-              <div class="quote-info">
-                <i class="fas fa-dollar-sign"></i>
-                <strong>R ${parseFloat(booking.Quoted_Amount).toFixed(2)}</strong>
-              </div>
-            ` : ''}
-            
-            <!-- Single View Details button -->
-            <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails('${booking.ID}')">
-              <i class="fas fa-eye"></i> View Details
-            </button>
+          <div class="booking-meta">
+            <span class="status-badge ${booking.Status}">${this.formatStatus(booking.Status)}</span>
           </div>
         </div>
+
+        <div class="customer-info-workflow">
+          <div class="customer-main-info">
+            <strong>${booking.Customer?.Full_Name || 'Unknown Customer'}</strong>
+            <div class="customer-contact">
+              <span><i class="fas fa-phone"></i> ${booking.Customer?.Phone || 'No phone'}</span>
+              <span><i class="fas fa-envelope"></i> ${booking.Customer?.Email || 'No email'}</span>
+            </div>
+          </div>
+        </div>
+
+        ${booking.Special_Instructions ? `
+          <div class="special-instructions">
+            <p><strong>Special Instructions:</strong> ${booking.Special_Instructions}</p>
+          </div>
+        ` : ''}
+
+        <div class="workflow-actions">
+          ${this.renderActionButtons(booking.Status, booking.ID, isPast, booking.Customer?.Phone)}
+        </div>
+
+        <div class="booking-quick-info">
+          ${booking.Quoted_Amount ? `
+            <div class="quote-info">
+              <i class="fas fa-dollar-sign"></i>
+              <strong>R ${parseFloat(booking.Quoted_Amount).toFixed(2)}</strong>
+            </div>
+          ` : ''}
+          
+          <button class="btn-view-details" onclick="adminDashboard.viewBookingDetails('${booking.ID}')">
+            <i class="fas fa-eye"></i> View Details
+          </button>
+        </div>
+        
+        <!-- UPDATED: Using the new relative date formatting -->
+        <span class="creation-date">
+          <i class="fas fa-clock"></i>
+          Created: ${this.formatRelativeDate(booking.Created_At)}
+        </span>
+      </div>
       `;
       }).join('');
     } else {
       container.innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-calendar-times"></i>
-        <p>No quotation requests found</p>
-      </div>
+    <div class="empty-state">
+      <i class="fas fa-calendar-times"></i>
+      <p>No quotation requests found</p>
+    </div>
     `;
     }
   }
@@ -3094,10 +3123,54 @@ class AdminDashboard {
       this.hideLoading();
     }
   }
+  
   isPastBooking(bookingDate) {
     if (!bookingDate) return false;
     const today = new Date().toISOString().split('T')[0];
     return bookingDate < today;
+  }
+
+  // Delete booking from admin view only (doesn't affect customer side)
+  async deleteBookingAdmin(bookingId) {
+    try {
+      const confirmed = await this.showConfirmationModal(
+        'Delete Booking',
+        'Are you sure you want to delete this booking from admin view?',
+        'This will only remove the booking from your admin dashboard. The customer will still see their booking.',
+        'Delete',
+        'Cancel'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      this.showLoading('Deleting booking from admin view...');
+
+      // Add to admin's deleted bookings list (soft delete for admin only)
+      const adminDeletedBookings = JSON.parse(localStorage.getItem('adminDeletedBookings') || '[]');
+      if (!adminDeletedBookings.includes(bookingId)) {
+        adminDeletedBookings.push(bookingId);
+        localStorage.setItem('adminDeletedBookings', JSON.stringify(adminDeletedBookings));
+      }
+
+      this.showNotification('Booking removed from admin view', 'success');
+
+      // Reload bookings to refresh the list
+      await this.loadBookings();
+
+    } catch (error) {
+      console.error('❌ Error deleting booking from admin view:', error);
+      this.showNotification('Failed to delete booking', 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  // Filter out admin-deleted bookings from the list
+  filterAdminDeletedBookings(bookings) {
+    const adminDeletedBookings = JSON.parse(localStorage.getItem('adminDeletedBookings') || '[]');
+    return bookings.filter(booking => !adminDeletedBookings.includes(booking.ID));
   }
 
   // Enhanced status formatting
@@ -3684,11 +3757,16 @@ class AdminDashboard {
                 <!-- Quick Status Actions -->
                 <div class="quick-actions">
                     ${!['cancelled', 'completed', 'declined'].includes(booking.Status) ? `
-                    <button class="btn btn-danger" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'cancelled')">
+                    <button class="btn btn-warning" onclick="adminDashboard.updateBookingStatus('${booking.ID}', 'declined')">
                         <i class="fas fa-times"></i>
-                        Cancel Booking
+                        Decline Booking
                     </button>
                     ` : ''}
+                    
+                    <!-- Admin Delete Button - doesn't affect customer side -->
+                    <button class="btn btn-danger btn-sm" onclick="adminDashboard.deleteBookingAdmin('${booking.ID}')" title="Delete from admin view only">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
         </div>
@@ -5547,7 +5625,60 @@ function previewProductImage(event) {
     console.error('Error previewing product image:', error);
   }
 }
+// Add this to your admin-dashboard.js or in a script tag
+document.addEventListener('DOMContentLoaded', function () {
+  // Fix table header visibility and scrolling
+  function initializeTableScroll() {
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
 
+    tableWrappers.forEach(wrapper => {
+      const table = wrapper.querySelector('.data-table');
+      if (!table) return;
+
+      // Ensure all table headers are properly styled
+      const headers = table.querySelectorAll('th');
+      headers.forEach(header => {
+        header.style.position = 'sticky';
+        header.style.top = '0';
+        header.style.zIndex = '10';
+        header.style.background = 'var(--secondary-color)';
+      });
+
+      // Add scroll indicators
+      wrapper.addEventListener('scroll', function () {
+        if (this.scrollLeft > 0) {
+          this.classList.add('scrolling');
+        } else {
+          this.classList.remove('scrolling');
+        }
+      });
+
+      // Check if table is wider than container and add scroll hint
+      if (table.scrollWidth > wrapper.clientWidth) {
+        wrapper.classList.add('scrollable');
+      }
+    });
+  }
+
+  // Initialize table scroll when section loads
+  function initializeSectionTables(section) {
+    if (section === 'customers' || section === 'admin-management') {
+      setTimeout(initializeTableScroll, 100);
+    }
+  }
+
+  // Call this when your dashboard loads
+  initializeTableScroll();
+
+  // Also call when switching to table-heavy sections
+  const originalLoadSectionData = window.adminDashboard?.loadSectionData;
+  if (originalLoadSectionData) {
+    window.adminDashboard.loadSectionData = function (section) {
+      originalLoadSectionData.call(this, section);
+      initializeSectionTables(section);
+    };
+  }
+});
 function previewServiceImage(event) {
   try {
     const input = event.target;
@@ -5623,14 +5754,14 @@ let currentResetAdminId = null;
 // Open password reset modal
 function openPasswordResetModal(adminId, adminName) {
   currentResetAdminId = adminId;
-  
+
   // Set admin name in modal
   document.getElementById('resetAdminName').textContent = adminName;
-  
+
   // Reset modal state
   document.getElementById('passwordResetContent').style.display = 'block';
   document.getElementById('passwordResetResult').style.display = 'none';
-  
+
   // Show modal
   const modal = document.getElementById('adminPasswordResetModal');
   if (modal) {
@@ -5646,7 +5777,7 @@ function closePasswordResetModal() {
     modal.style.display = 'none';
     document.body.style.overflow = 'auto';
   }
-  
+
   // Reset state
   currentResetAdminId = null;
   document.getElementById('passwordResetContent').style.display = 'block';
@@ -5674,11 +5805,11 @@ async function confirmPasswordReset() {
       // Show success result
       document.getElementById('passwordResetContent').style.display = 'none';
       document.getElementById('passwordResetResult').style.display = 'block';
-      
+
       // Populate result data
       document.getElementById('resultAdminName').textContent = response.adminName;
       document.getElementById('tempPasswordDisplay').value = response.tempPassword;
-      
+
       // Show success notification
       window.adminDashboard?.showNotification('Password reset successfully', 'success');
     } else {
@@ -5688,10 +5819,10 @@ async function confirmPasswordReset() {
   } catch (error) {
     console.error('Password reset error:', error);
     window.adminDashboard?.showNotification(
-      error.response?.data?.message || error.message || 'Failed to reset admin password', 
+      error.response?.data?.message || error.message || 'Failed to reset admin password',
       'error'
     );
-    
+
     // Reset button state
     const confirmBtn = document.querySelector('#passwordResetContent .btn-danger');
     confirmBtn.innerHTML = '<i class="fas fa-key"></i> Generate New Password';
@@ -5703,12 +5834,12 @@ async function confirmPasswordReset() {
 async function copyTempPassword() {
   const passwordInput = document.getElementById('tempPasswordDisplay');
   const copyBtn = document.querySelector('.btn-copy');
-  
+
   try {
     // Select and copy the password
     passwordInput.select();
     passwordInput.setSelectionRange(0, 99999); // For mobile devices
-    
+
     // Use modern clipboard API if available
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(passwordInput.value);
@@ -5716,19 +5847,19 @@ async function copyTempPassword() {
       // Fallback for older browsers
       document.execCommand('copy');
     }
-    
+
     // Show feedback
     const originalText = copyBtn.innerHTML;
     copyBtn.innerHTML = '<i class="fas fa-check"></i>';
     copyBtn.style.background = '#28a745';
-    
+
     setTimeout(() => {
       copyBtn.innerHTML = originalText;
       copyBtn.style.background = '#007bff';
     }, 2000);
-    
+
     window.adminDashboard?.showNotification('Password copied to clipboard', 'success');
-    
+
   } catch (error) {
     console.error('Copy failed:', error);
     window.adminDashboard?.showNotification('Failed to copy password', 'error');

@@ -1,7 +1,7 @@
 // services.js - Unified Customer Services with No Code Duplication
 class CustomerServices {
     constructor() {
-        this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api';
+        this.baseURL = window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001';
         this.services = [];
         this.filteredServices = [];
         this.currentCategory = 'all';
@@ -588,6 +588,14 @@ class CustomerServices {
         const selectedDate = formData.get('booking-date');
         const selectedTime = formData.get('booking-time');
 
+        // DEBUG: Check if user and token exist
+        console.log('🔐 User auth check:', {
+            userExists: !!user,
+            userId: user?.ID,
+            hasToken: !!window.authManager.token,
+            token: window.authManager.token ? 'Present' : 'Missing'
+        });
+
         const bookingData = {
             Service_ID: service.ID,
             Customer_ID: user.ID,
@@ -601,25 +609,73 @@ class CustomerServices {
             Duration: service.Duration,
             Status: 'requested',
             Property_Type: formData.get('property-type'),
-            Cleaning_Frequency: formData.get('cleaning-frequency')
+            Cleaning_Frequency: formData.get('cleaning-frequency'),
+            // Include customer profile data for automatic updates
+            Customer_Full_Name: formData.get('customer-name') || user.Full_Name,
+            Customer_Phone: formData.get('customer-phone') || user.Phone,
+            Service_Location: formData.get('service-location') || 'on-site'
         };
 
         console.log('📤 Submitting booking:', bookingData);
 
-        const response = await this.fetchRequest('POST', '/bookings', bookingData);
+        try {
+            // Get the token directly from authManager
+            const token = window.authManager.token;
 
-        if (response && (response.success || response.booking)) {
-            this.showSuccess('Booking request submitted successfully! We will contact you within 24 hours.');
-
-            if (formType === 'modal') {
-                this.closeBookingModal();
+            if (!token) {
+                throw new Error('No authentication token found. Please log in again.');
             }
 
-            localStorage.removeItem('intendedService');
-            localStorage.removeItem('intendedServiceData');
-            localStorage.removeItem('intendedBookingData');
-        } else {
-            throw new Error('Failed to submit booking request');
+            // FIX: Remove the extra /api prefix - use just '/bookings'
+            const response = await fetch(`${this.baseURL}/bookings`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(bookingData)
+            });
+
+            console.log('📨 Booking response status:', response.status);
+
+            if (!response.ok) {
+                // Handle specific HTTP errors
+                if (response.status === 401) {
+                    throw new Error('Authentication failed. Please log in again.');
+                } else if (response.status === 403) {
+                    throw new Error('You do not have permission to make bookings.');
+                } else if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Invalid booking data.');
+                } else if (response.status === 404) {
+                    throw new Error('Booking endpoint not found. Please contact support.');
+                } else {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+            }
+
+            const responseData = await response.json();
+
+            if (responseData.success || responseData.booking) {
+                this.showSuccess('Booking request submitted successfully! We will contact you within 24 hours.');
+
+                if (formType === 'modal') {
+                    this.closeBookingModal();
+                }
+
+                // Clear any intended booking data
+                localStorage.removeItem('intendedService');
+                localStorage.removeItem('intendedServiceData');
+                localStorage.removeItem('intendedBookingData');
+
+                return responseData;
+            } else {
+                throw new Error(responseData.message || 'Failed to submit booking request');
+            }
+
+        } catch (error) {
+            console.error('❌ Booking submission failed:', error);
+            throw error; // Re-throw to be handled by processBookingSubmission
         }
     }
 
@@ -1672,6 +1728,12 @@ class CustomerServices {
     isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
+    }
+
+    isValidPostalCode(postalCode) {
+        // Accept South African postal codes (4 digits) and international formats
+        const postalCodeRegex = /^\d{4}(-\d{4})?$/;
+        return postalCodeRegex.test(postalCode);
     }
 
     getServiceIcon(serviceName) {
@@ -2982,3 +3044,5 @@ style.textContent = `
     
 `;
 document.head.appendChild(style);
+// Set minimum date to today
+document.getElementById('booking-date').min = new Date().toISOString().split('T')[0];

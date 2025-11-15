@@ -24,7 +24,10 @@ exports.createBooking = async (req, res) => {
       Address_Postal_Code,
       Property_Type,
       Property_Size,
-      Cleaning_Frequency
+      Cleaning_Frequency,
+      Customer_Full_Name,
+      Customer_Phone,
+      Service_Location
     } = req.body;
 
     // ==================== VALIDATION CHECKS ====================
@@ -206,6 +209,48 @@ exports.createBooking = async (req, res) => {
     // Create the booking
     const booking = await bookingService.create(bookingData);
     console.log('✅ BOOKING CREATED SUCCESSFULLY - ID:', booking.ID);
+
+    // ==================== UPDATE CUSTOMER PROFILE ====================
+    console.log('🔄 UPDATING CUSTOMER PROFILE...');
+    
+    // Check if customer profile data needs to be updated
+    const customerUpdateData = {};
+    let needsUpdate = false;
+
+    // Update Full Name if provided and different from current
+    if (Customer_Full_Name && Customer_Full_Name.trim() && Customer_Full_Name !== customer.Full_Name) {
+      customerUpdateData.Full_Name = Customer_Full_Name.trim();
+      needsUpdate = true;
+      console.log('📝 Updating Full Name:', Customer_Full_Name);
+    }
+
+    // Update Phone if provided and different from current
+    if (Customer_Phone && Customer_Phone.trim() && Customer_Phone !== customer.Phone) {
+      customerUpdateData.Phone = Customer_Phone.trim();
+      needsUpdate = true;
+      console.log('📝 Updating Phone:', Customer_Phone);
+    }
+
+    // Update Address if complete address is provided and different from current
+    const newAddress = `${Address_Street.trim()}, ${Address_City.trim()}, ${Address_State.trim()}, ${Address_Postal_Code.trim()}`;
+    if (newAddress && newAddress !== customer.Address) {
+      customerUpdateData.Address = newAddress;
+      needsUpdate = true;
+      console.log('📝 Updating Address:', newAddress);
+    }
+
+    // Apply updates if needed
+    if (needsUpdate) {
+      try {
+        const updatedCustomer = await customerService.update(customer.ID, customerUpdateData);
+        console.log('✅ CUSTOMER PROFILE UPDATED SUCCESSFULLY:', updatedCustomer.Full_Name);
+      } catch (updateError) {
+        console.error('⚠️ FAILED TO UPDATE CUSTOMER PROFILE:', updateError);
+        // Don't fail the booking, just log the error
+      }
+    } else {
+      console.log('ℹ️ NO CUSTOMER PROFILE UPDATES NEEDED');
+    }
 
     // Fetch the complete booking with related data (Firebase style)
     const newBooking = await bookingService.findById(booking.ID);
@@ -557,20 +602,9 @@ exports.updateBooking = async (req, res) => {
 
     console.log('🔄 UPDATING BOOKING WITH:', updates);
 
-    await booking.update(updates);
+    await bookingService.update(id, updates);
 
-    const updatedBooking = await bookingService.findById(id, {
-      include: [
-        {
-          model: Customer,
-          attributes: ['ID', 'Full_Name', 'Email', 'Phone']
-        },
-        {
-          model: Service,
-          attributes: ['ID', 'Name', 'Description', 'Duration']
-        }
-      ]
-    });
+    const updatedBooking = await bookingService.findById(id);
 
     res.json({
       success: true,
@@ -813,7 +847,12 @@ exports.updateBookingStatus = async (req, res) => {
 
     if (Status === 'cancelled') {
       updateData.cancelled_date = new Date().toISOString();
-      console.log('❌ Marking as cancelled');
+      console.log('❌ Customer cancelled booking');
+    }
+
+    if (Status === 'declined') {
+      updateData.declined_date = new Date().toISOString();
+      console.log('❌ Admin declined booking');
     }
 
     // Save admin notes if provided

@@ -62,18 +62,18 @@ class ProfileManager {
         // Initialize form validator if available
         if (typeof FormValidator !== 'undefined') {
             this.formValidator = new FormValidator();
-            
+
             // Apply validation to profile edit fields
             const profileFields = [
                 'edit-fullname',
-                'edit-email', 
+                'edit-email',
                 'edit-phone',
                 'edit-address-street',
                 'edit-address-city',
                 'edit-address-state',
                 'edit-address-zip'
             ];
-            
+
             profileFields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
                 if (field) {
@@ -161,7 +161,7 @@ class ProfileManager {
         try {
             // Split by commas and trim each part
             const parts = addressString.split(',').map(part => part.trim());
-            
+
             // Handle different address formats
             if (parts.length >= 4) {
                 return {
@@ -274,6 +274,375 @@ class ProfileManager {
         });
     }
 
+    setupBookingHistoryListeners() {
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.cancel-booking-btn')) {
+                const bookingId = e.target.closest('.cancel-booking-btn').dataset.bookingId;
+                this.cancelBooking(bookingId);
+            }
+
+            if (e.target.closest('.edit-booking-btn')) {
+                const bookingId = e.target.closest('.edit-booking-btn').dataset.bookingId;
+                this.editBooking(bookingId);
+            }
+
+            if (e.target.closest('.view-booking-btn')) {
+                const bookingId = e.target.closest('.view-booking-btn').dataset.bookingId;
+                this.viewBookingDetails(bookingId);
+            }
+        });
+    }
+
+    async editBooking(bookingId) {
+        try {
+            this.showLoading('Loading booking details...');
+
+            // Get booking details
+            const response = await axios.get(
+                `${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001'}/bookings/${bookingId}`,
+                { headers: authManager.getAuthHeaders() }
+            );
+
+            if (response.data && response.data.success) {
+                const booking = response.data.booking;
+                this.showEditBookingModal(booking);
+            } else {
+                throw new Error('Failed to load booking details');
+            }
+        } catch (error) {
+            console.error('Error loading booking details:', error);
+            this.showError('Failed to load booking for editing');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    showEditBookingModal(booking) {
+        // Remove any existing modal first
+        const existingModal = document.querySelector('.edit-booking-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Format date for input field (YYYY-MM-DD)
+        const bookingDate = new Date(booking.Date);
+        const formattedDate = bookingDate.toISOString().split('T')[0];
+
+        // Create modal HTML
+        const modal = document.createElement('div');
+        modal.className = 'modal edit-booking-modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Edit Booking</h2>
+                
+                <form id="edit-booking-form">
+                    <div class="form-group">
+                        <label for="edit-booking-date">Date</label>
+                        <input type="date" id="edit-booking-date" value="${formattedDate}" required>
+                        <div class="validation-message" id="date-validation" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-booking-time">Time</label>
+                        <select id="edit-booking-time" required>
+                            <option value="08:00" ${booking.Time === '08:00' ? 'selected' : ''}>08:00 AM</option>
+                            <option value="09:00" ${booking.Time === '09:00' ? 'selected' : ''}>09:00 AM</option>
+                            <option value="10:00" ${booking.Time === '10:00' ? 'selected' : ''}>10:00 AM</option>
+                            <option value="11:00" ${booking.Time === '11:00' ? 'selected' : ''}>11:00 AM</option>
+                            <option value="12:00" ${booking.Time === '12:00' ? 'selected' : ''}>12:00 PM</option>
+                            <option value="13:00" ${booking.Time === '13:00' ? 'selected' : ''}>01:00 PM</option>
+                            <option value="14:00" ${booking.Time === '14:00' ? 'selected' : ''}>02:00 PM</option>
+                            <option value="15:00" ${booking.Time === '15:00' ? 'selected' : ''}>03:00 PM</option>
+                            <option value="16:00" ${booking.Time === '16:00' ? 'selected' : ''}>04:00 PM</option>
+                        </select>
+                        <div class="validation-message" id="time-validation" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-special-instructions">Special Instructions</label>
+                        <textarea id="edit-special-instructions" placeholder="Any special instructions for our team...">${booking.Special_Instructions || ''}</textarea>
+                    </div>
+                    
+                    <div class="booking-validation-info">
+                        <p><i class="fas fa-info-circle"></i> Same-day bookings after 12:00 PM will be scheduled for the next day</p>
+                        <p><i class="fas fa-info-circle"></i> Cannot book in the past or select passed time slots</p>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary cancel-edit-booking">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-primary" id="submit-booking-btn">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Initialize date validation
+        this.initializeBookingValidation(modal, booking.ID);
+
+        // Event listeners
+        const closeBtn = modal.querySelector('.close-btn');
+        const cancelBtn = modal.querySelector('.cancel-edit-booking');
+        const form = document.getElementById('edit-booking-form');
+
+        const closeModal = () => {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+            }, 300);
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (await this.validateBookingForm(booking.ID)) {
+                await this.submitBookingEdit(booking.ID);
+            }
+        });
+
+        // Add escape key listener
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        // Remove escape listener when modal closes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.removedNodes.length > 0) {
+                    const removed = Array.from(mutation.removedNodes);
+                    if (removed.some(node => node === modal)) {
+                        document.removeEventListener('keydown', handleEscape);
+                        observer.disconnect();
+                    }
+                }
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Add fade-in animation
+        modal.style.animation = 'fadeIn 0.3s ease';
+    }
+
+    // Validation Methods - Moved outside showEditBookingModal
+    initializeBookingValidation(modal, bookingId) {
+        const dateInput = document.getElementById('edit-booking-date');
+        const timeSelect = document.getElementById('edit-booking-time');
+        const dateValidation = document.getElementById('date-validation');
+        const timeValidation = document.getElementById('time-validation');
+        const submitBtn = document.getElementById('submit-booking-btn');
+
+        // Set initial minimum date
+        this.updateMinimumDate();
+
+        // Real-time validation
+        dateInput.addEventListener('change', () => this.validateDateSelection(dateInput, timeSelect, dateValidation, timeValidation, submitBtn, bookingId));
+        timeSelect.addEventListener('change', () => this.validateTimeSelection(dateInput, timeSelect, timeValidation, submitBtn));
+
+        // Initial validation
+        this.validateDateSelection(dateInput, timeSelect, dateValidation, timeValidation, submitBtn, bookingId);
+    }
+
+    updateMinimumDate() {
+        const dateInput = document.getElementById('edit-booking-date');
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        // If it's after 12:00 PM, minimum date is tomorrow
+        if (currentHour >= 12) {
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.min = tomorrow.toISOString().split('T')[0];
+        } else {
+            // If it's before 12:00 PM, minimum date is today
+            dateInput.min = now.toISOString().split('T')[0];
+        }
+    }
+
+    async validateDateSelection(dateInput, timeSelect, dateValidation, timeValidation, submitBtn, bookingId) {
+        const selectedDate = new Date(dateInput.value);
+        const now = new Date();
+        const today = new Date(now.toISOString().split('T')[0]);
+        const currentHour = now.getHours();
+
+        dateValidation.style.display = 'none';
+        dateValidation.className = 'validation-message error';
+
+        // Check if date is in the past
+        if (selectedDate < today) {
+            dateValidation.textContent = 'Cannot book appointments in the past';
+            dateValidation.style.display = 'block';
+            submitBtn.disabled = true;
+            return false;
+        }
+
+        // Check same-day booking after 12:00 PM
+        if (selectedDate.getTime() === today.getTime() && currentHour >= 12) {
+            dateValidation.textContent = 'Same-day bookings after 12:00 PM are not available. Please select tomorrow or later.';
+            dateValidation.style.display = 'block';
+            submitBtn.disabled = true;
+            return false;
+        }
+
+        // Check for existing bookings on the same day
+        const hasExistingBooking = await this.checkExistingBooking(selectedDate, bookingId);
+        if (hasExistingBooking) {
+            dateValidation.textContent = 'You already have a booking on this date. Please choose a different date.';
+            dateValidation.style.display = 'block';
+            submitBtn.disabled = true;
+            return false;
+        }
+
+        // Validate time for the selected date
+        return this.validateTimeSelection(dateInput, timeSelect, timeValidation, submitBtn);
+    }
+
+    validateTimeSelection(dateInput, timeSelect, timeValidation, submitBtn) {
+        const selectedDate = new Date(dateInput.value);
+        const selectedTime = timeSelect.value;
+        const now = new Date();
+        const today = new Date(now.toISOString().split('T')[0]);
+
+        timeValidation.style.display = 'none';
+        timeValidation.className = 'validation-message error';
+
+        // If selected date is today, check if time has passed
+        if (selectedDate.getTime() === today.getTime()) {
+            const selectedDateTime = new Date();
+            const [hours, minutes] = selectedTime.split(':').map(Number);
+            selectedDateTime.setHours(hours, minutes, 0, 0);
+
+            if (selectedDateTime < now) {
+                timeValidation.textContent = 'This time slot has already passed. Please select a future time.';
+                timeValidation.style.display = 'block';
+                submitBtn.disabled = true;
+                return false;
+            }
+        }
+
+        submitBtn.disabled = false;
+        return true;
+    }
+
+    async checkExistingBooking(selectedDate, currentBookingId) {
+        try {
+            // Get user's bookings
+            const response = await axios.get(
+                `${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api'}/bookings/customer/${this.user.ID}`,
+                { headers: authManager.getAuthHeaders() }
+            );
+
+            if (response.data && response.data.success) {
+                const bookings = response.data.bookings || [];
+                const selectedDateStr = selectedDate.toISOString().split('T')[0];
+
+                // Check if user has any other booking on the same date (excluding current booking)
+                const existingBooking = bookings.find(booking => {
+                    if (booking.ID === currentBookingId) return false; // Skip current booking
+
+                    const bookingDate = new Date(booking.Date);
+                    const bookingDateStr = bookingDate.toISOString().split('T')[0];
+                    const isActiveStatus = ['requested', 'pending', 'confirmed', 'quoted'].includes(booking.Status);
+
+                    return bookingDateStr === selectedDateStr && isActiveStatus;
+                });
+
+                return !!existingBooking;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking existing bookings:', error);
+            return false;
+        }
+    }
+
+    async validateBookingForm(bookingId) {
+        const dateInput = document.getElementById('edit-booking-date');
+        const timeSelect = document.getElementById('edit-booking-time');
+        const dateValidation = document.getElementById('date-validation');
+        const timeValidation = document.getElementById('time-validation');
+
+        // Validate date
+        const isDateValid = await this.validateDateSelection(dateInput, timeSelect, dateValidation, timeValidation, document.getElementById('submit-booking-btn'), bookingId);
+        if (!isDateValid) {
+            return false;
+        }
+
+        // Validate time
+        const isTimeValid = this.validateTimeSelection(dateInput, timeSelect, timeValidation, document.getElementById('submit-booking-btn'));
+        if (!isTimeValid) {
+            return false;
+        }
+
+        return true;
+    }
+
+    async submitBookingEdit(bookingId) {
+        try {
+            // Final validation before submission
+            if (!await this.validateBookingForm(bookingId)) {
+                this.showError('Please fix the validation errors before saving.');
+                return;
+            }
+
+            this.showLoading('Saving changes...');
+            
+            const updatedData = {
+                Date: document.getElementById('edit-booking-date').value,
+                Time: document.getElementById('edit-booking-time').value,
+                Special_Instructions: document.getElementById('edit-special-instructions').value
+            };
+            
+            const response = await axios.put(
+                `${window.appConfig ? window.appConfig.baseURL : 'http://localhost:5001/api'}/bookings/${bookingId}`,
+                updatedData,
+                { headers: authManager.getAuthHeaders() }
+            );
+            
+            if (response.data && response.data.success) {
+                this.showSuccess('Booking updated successfully!');
+                
+                // Close modal
+                const modal = document.querySelector('.edit-booking-modal');
+                if (modal) {
+                    modal.remove();
+                }
+                
+                await this.loadBookingHistory(); // Refresh bookings
+            } else {
+                throw new Error(response.data.message || 'Failed to update booking');
+            }
+        } catch (error) {
+            console.error('Error updating booking:', error);
+            this.showError(error.message || 'Failed to update booking');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
     startEditing(section) {
         if (this.isEditing) {
             this.showError('Please finish editing the current section first.');
@@ -299,12 +668,12 @@ class ProfileManager {
 
         inputs.forEach(input => {
             input.style.display = 'block';
-            
+
             if (section === 'address-info') {
                 // Parse the current address and populate individual fields
                 const currentAddress = document.getElementById('info-address-street').textContent;
                 const parsedAddress = this.parseAddress(currentAddress);
-                
+
                 const fieldName = input.id.replace('edit-address-', '');
                 input.value = parsedAddress[fieldName] || '';
             } else {
@@ -393,10 +762,10 @@ class ProfileManager {
 
                 // Combine into single address string
                 const combinedAddress = `${addressStreet}, ${addressCity}, ${addressState}, ${addressZip}`;
-                
+
                 // Update user profile with the combined address
                 await this.updateUserProfile({ Address: combinedAddress });
-                
+
                 // Update local display for all address fields
                 this.updateAddressDisplay({
                     street: addressStreet,
@@ -404,7 +773,7 @@ class ProfileManager {
                     state: addressState,
                     zip: addressZip
                 });
-                
+
                 this.cancelEditing(section);
                 this.showSuccess('Address updated successfully!');
             }
@@ -633,13 +1002,22 @@ class ProfileManager {
             <div class="booking-footer">
                 
                 <div class="booking-actions">
-                    ${status === 'requested' || status === 'confirmed' ? `
+                    ${status === 'requested' || status === 'pending' ? `
+                        <button class="btn-outline edit-booking-btn" data-booking-id="${booking.ID}">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
                         <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
                             <i class="fas fa-times"></i>
                             Cancel
                         </button>
                     ` : ''}
-                    
+                    ${status === 'confirmed' ? `
+                        <button class="btn-outline cancel-booking-btn" data-booking-id="${booking.ID}">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         </div>
@@ -653,6 +1031,7 @@ class ProfileManager {
             'confirmed': 'status-confirmed',
             'completed': 'status-completed',
             'cancelled': 'status-cancelled',
+            'declined': 'status-declined',
             'quoted': 'status-confirmed'
         };
         return statusClasses[status] || 'status-pending';
@@ -665,6 +1044,7 @@ class ProfileManager {
             'confirmed': 'fa-check-circle',
             'completed': 'fa-check-double',
             'cancelled': 'fa-times-circle',
+            'declined': 'fa-ban',
             'quoted': 'fa-dollar-sign'
         };
         return statusIcons[status] || 'fa-clock';
@@ -677,23 +1057,10 @@ class ProfileManager {
             'confirmed': 'Confirmed',
             'completed': 'Completed',
             'cancelled': 'Cancelled',
+            'declined': 'Declined',
             'quoted': 'Quoted'
         };
         return statusMap[status] || status;
-    }
-
-    setupBookingHistoryListeners() {
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.cancel-booking-btn')) {
-                const bookingId = e.target.closest('.cancel-booking-btn').dataset.bookingId;
-                this.cancelBooking(bookingId);
-            }
-
-            if (e.target.closest('.view-booking-btn')) {
-                const bookingId = e.target.closest('.view-booking-btn').dataset.bookingId;
-                this.viewBookingDetails(bookingId);
-            }
-        });
     }
 
     async cancelBooking(bookingId) {
