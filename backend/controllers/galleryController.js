@@ -93,7 +93,7 @@ exports.getAllMedia = async (req, res) => {
 
     // Normalize the response to use consistent field names for frontend
     const normalizedMedia = media.map(item => ({
-      id: item.id || item.ID,
+      id: item.ID || item.id,  // Firestore document ID (from galleryService.findAll)
       filename: item.filename || item.Title,
       url: item.url || item.Image_URL,
       category: item.category || item.Category,
