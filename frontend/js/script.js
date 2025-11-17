@@ -242,11 +242,8 @@ class EnhancedAPIClient {
   }
 
   async executeRequest(method, endpoint, data = null, options = {}) {
-    const timeout = options.timeout || 30000;
-    const timeoutId = setTimeout(() => {
-      throw new Error('Request timeout');
-    }, timeout);
-
+    const timeout = options.timeout || (window.innerWidth <= 768 ? 60000 : 20000); // Use the responsive timeout
+    
     if (!options.background) {
       window.beautifulLoader.show(options.loadingMessage || 'Loading...');
     }
@@ -289,7 +286,6 @@ class EnhancedAPIClient {
 
       throw this.handleError(error);
     } finally {
-      clearTimeout(timeoutId);
       if (!options.background) {
         window.beautifulLoader.hide();
       }
@@ -2558,7 +2554,7 @@ async function loadGalleryItems() {
 
     const response = await window.apiClient.get('/gallery/media', {
       background: true,
-      timeout: 10000,
+      timeout: 45000, // Increased timeout for slower mobile networks
       cacheTTL: 600000 // Cache for 10 minutes
     });
 
@@ -3461,7 +3457,7 @@ document.addEventListener('DOMContentLoaded', function () {
           Email,
           Password
         }, {
-          loadingMessage: 'Setting up your account...'
+          timeout: 60000 // 60 second timeout for slower mobile networks
         });
 
         const successBox = document.getElementById('register-success');
@@ -3540,7 +3536,7 @@ document.addEventListener('DOMContentLoaded', function () {
           Email: Email,
           Password: Password
         }, {
-          loadingMessage: 'Authenticating...'
+          timeout: 60000 // 60 second timeout for slower mobile networks
         });
 
         // Login response received
