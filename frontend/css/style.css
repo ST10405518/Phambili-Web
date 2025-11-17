@@ -4201,9 +4201,8 @@ body.overlay-active {
 }
 
 .gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
+    column-count: 3;
+    column-gap: 1.5rem;
     padding: 0 1rem;
 }
 
@@ -4215,8 +4214,10 @@ body.overlay-active {
     transition: all 0.3s ease;
     background: var(--white);
     cursor: pointer;
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+    display: inline-block;
     width: 100%;
-    height: 250px;
 }
 
 .gallery-item:hover {
@@ -4227,10 +4228,9 @@ body.overlay-active {
 .gallery-item img,
 .gallery-item video {
     width: 100%;
-    height: 100%;
+    height: auto;
     display: block;
     transition: transform 0.3s ease;
-    object-fit: cover;
 }
 
 .gallery-item:hover img,
