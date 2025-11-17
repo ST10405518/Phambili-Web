@@ -93,7 +93,7 @@ exports.getAllMedia = async (req, res) => {
 
     // Normalize the response to use consistent field names for frontend
     const normalizedMedia = media.map(item => ({
-      ID: item.ID,
+      id: item.id || item.ID,
       filename: item.filename || item.Title,
       url: item.url || item.Image_URL,
       category: item.category || item.Category,

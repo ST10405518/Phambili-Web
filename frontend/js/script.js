@@ -2550,15 +2550,15 @@ let currentFilter = 'all';
 
 async function loadGalleryItems() {
   try {
-    // Loading gallery items from API...
+    console.log('📸 Loading gallery items from API...');
 
     const response = await window.apiClient.get('/gallery/media', {
       background: true,
       timeout: 45000, // Increased timeout for slower mobile networks
-      cacheTTL: 600000 // Cache for 10 minutes
+      cacheTTL: 0 // Disable cache to always get fresh data
     });
 
-    // Gallery API response received
+    console.log('✅ Gallery API response received:', response);
 
     // Handle different response structures
     let mediaItems = [];
@@ -2569,11 +2569,14 @@ async function loadGalleryItems() {
       mediaItems = response;
     }
 
+    console.log(`📊 Found ${mediaItems.length} gallery items`);
+
     if (mediaItems.length > 0) {
       currentGalleryItems = mediaItems;
       renderGalleryItems(mediaItems);
       initializeLightbox();
     } else {
+      console.warn('⚠️  No gallery items found');
       showEmptyGalleryState();
     }
   } catch (error) {
