@@ -64,24 +64,49 @@ exports.getAllMedia = async (req, res) => {
     const allMedia = await galleryService.findAll();
     
     // Filter by category and active status
-    let media = allMedia.filter(item => item.is_active === true);
+    // Handle BOTH old and new field formats for backward compatibility
+    let media = allMedia.filter(item => {
+      // Check for new format (is_active)
+      if (item.is_active !== undefined) {
+        return item.is_active === true;
+      }
+      // Check for old format (Is_Featured or no explicit status field)
+      // Assume items without an explicit 'inactive' flag are active
+      return true;
+    });
     
     if (category && category !== 'all') {
-      media = media.filter(item => item.category === category);
+      media = media.filter(item => {
+        // Handle both field name formats
+        const itemCategory = item.category || item.Category;
+        return itemCategory && itemCategory.toLowerCase() === category.toLowerCase();
+      });
     }
 
     // Sort by upload date (newest first)
     media.sort((a, b) => {
-      const dateA = new Date(a.createdAt || 0);
-      const dateB = new Date(b.createdAt || 0);
+      // Handle both field name formats
+      const dateA = new Date(a.createdAt || a.Upload_Date || 0);
+      const dateB = new Date(b.createdAt || b.Upload_Date || 0);
       return dateB - dateA;
     });
 
-    const mediaWithUrls = media;
+    // Normalize the response to use consistent field names for frontend
+    const normalizedMedia = media.map(item => ({
+      ID: item.ID,
+      filename: item.filename || item.Title,
+      url: item.url || item.Image_URL,
+      category: item.category || item.Category,
+      media_type: item.media_type || 'image',
+      is_active: item.is_active !== false,
+      createdAt: item.createdAt || item.Upload_Date,
+      // Keep original fields for backward compatibility
+      ...item
+    }));
 
     res.json({
       success: true,
-      media: mediaWithUrls
+      media: normalizedMedia
     });
 
   } catch (error) {

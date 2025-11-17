@@ -78,12 +78,12 @@ async function createSampleData() {
     // 5. Sample Gallery Item
     console.log('\n🖼️  Creating sample gallery item...');
     const galleryRef = await db.collection('gallery').add({
-      Title: 'Office Cleaning Project',
-      Description: 'Professional office cleaning service completed',
-      Image_URL: '/images/sample-gallery.jpg',
-      Category: 'Commercial',
-      Is_Featured: true,
-      Upload_Date: new Date().toISOString(),
+      filename: 'Office Cleaning Project',
+      description: 'Professional office cleaning service completed',
+      url: '/images/sample-gallery.jpg',
+      category: 'Commercial',
+      media_type: 'image',
+      is_active: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
