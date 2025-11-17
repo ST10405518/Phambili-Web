@@ -1743,7 +1743,7 @@ class AdminDashboard {
                   <span class="media-type-badge ${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="gallery-item-actions">
-                  <button onclick="adminDashboard.deleteGalleryItem(${item.id})" class="btn-icon delete" title="Delete">
+                  <button onclick="adminDashboard.deleteGalleryItem('${item.id}')" class="btn-icon delete" title="Delete">
                     <i class="fas fa-trash"></i>
                   </button>
                 </div>
